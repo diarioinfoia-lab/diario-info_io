@@ -1,83 +1,105 @@
-'use client'
-import { useEffect, useState } from 'react'
-import { useRouter, usePathname } from 'next/navigation'
-import Link from 'next/link'
-import { LayoutDashboard, Newspaper, Tag, ListMusic, Layout, Users, Bell, Settings, LogOut, Globe, ChevronLeft } from 'lucide-react'
+'use client';
+import { useState, useEffect } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
+import Link from 'next/link';
 
-const navItems = [
-  { href: '/dashboard', icon: LayoutDashboard, label: 'Inicio' },
-  { href: '/dashboard/noticias', icon: Newspaper, label: 'Noticias' },
-  { href: '/dashboard/categorias', icon: Tag, label: 'Categorías' },
-  { href: '/dashboard/playlists', icon: ListMusic, label: 'Playlists' },
-  { href: '/dashboard/portada', icon: Layout, label: 'Portada' },
-  { href: '/dashboard/usuarios', icon: Users, label: 'Usuarios' },
-  { href: '/dashboard/notificaciones', icon: Bell, label: 'Notificaciones' },
-  { href: '/dashboard/ajustes', icon: Settings, label: 'Ajustes' },
-]
+const NAV = [
+  { href: '/dashboard', label: 'Inicio', icon: '🏠', exact: true },
+  { href: '/dashboard/noticias', label: 'Noticias', icon: '📰' },
+  { href: '/dashboard/categorias', label: 'Categorías', icon: '🏷️' },
+  { href: '/dashboard/usuarios', label: 'Usuarios', icon: '👥' },
+  { href: '/dashboard/ajustes', label: 'Ajustes', icon: '⚙️' },
+];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const router = useRouter()
-  const pathname = usePathname()
-  const [collapsed, setCollapsed] = useState(false)
-  const [user, setUser] = useState<any>(null)
+  const router = useRouter();
+  const pathname = usePathname();
+  const [user, setUser] = useState<any>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
-    const token = localStorage.getItem('token')
-    const userData = localStorage.getItem('user')
-    if (!token) { router.push('/signin'); return }
-    if (userData) { try { setUser(JSON.parse(userData)) } catch {} }
-  }, [router])
+    const token = localStorage.getItem('token');
+    const userData = localStorage.getItem('user');
+    if (!token) { router.push('/signin'); return; }
+    if (userData) { try { setUser(JSON.parse(userData)); } catch {} }
+  }, []);
 
-  const logout = () => {
-    localStorage.removeItem('token')
-    localStorage.removeItem('user')
-    router.push('/signin')
+  function handleLogout() {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    router.push('/signin');
+  }
+
+  function isActive(href: string, exact?: boolean) {
+    if (exact) return pathname === href;
+    return pathname.startsWith(href);
   }
 
   return (
-    <div className="min-h-screen flex bg-gray-50 dark:bg-gray-950">
-      <aside className={`${collapsed ? 'w-16' : 'w-56'} shrink-0 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 flex flex-col transition-all duration-200`}>
-        <div className="h-14 flex items-center justify-between px-3 border-b border-gray-200 dark:border-gray-700">
-          {!collapsed && <span className="font-bold text-sm text-gray-900 dark:text-white">DiarioInfo</span>}
-          <button onClick={() => setCollapsed(!collapsed)} className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800 ml-auto">
-            <ChevronLeft className={`w-4 h-4 text-gray-500 transition-transform ${collapsed ? 'rotate-180' : ''}`}/>
-          </button>
-        </div>
+    <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex">
+      {/* Overlay móvil */}
+      {sidebarOpen && <div className="fixed inset-0 bg-black/50 z-20 lg:hidden" onClick={() => setSidebarOpen(false)} />}
 
-        <nav className="flex-1 py-4 space-y-1 px-2">
-          {navItems.map(({ href, icon: Icon, label }) => {
-            const active = pathname === href
-            return (
-              <Link key={href} href={href}
-                className={`flex items-center gap-3 px-2 py-2 rounded-lg text-sm transition-colors ${active ? 'bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 font-semibold' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'}`}>
-                <Icon className="w-4 h-4 shrink-0"/>
-                {!collapsed && <span>{label}</span>}
+      {/* Sidebar */}
+      <aside className={`fixed inset-y-0 left-0 z-30 w-64 bg-white dark:bg-gray-800 shadow-lg transform transition-transform duration-200 lg:translate-x-0 lg:static lg:shadow-none ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        <div className="flex flex-col h-full">
+          <div className="p-6 border-b dark:border-gray-700">
+            <Link href="/" className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-sm">D</div>
+              <div>
+                <p className="font-bold text-gray-900 dark:text-white text-sm">diario info</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Panel de control</p>
+              </div>
+            </Link>
+          </div>
+
+          <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+            {NAV.map(item => (
+              <Link key={item.href} href={item.href}
+                onClick={() => setSidebarOpen(false)}
+                className={`flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                  isActive(item.href, item.exact)
+                    ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                    : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'
+                }`}>
+                <span className="text-lg">{item.icon}</span>
+                {item.label}
               </Link>
-            )
-          })}
-        </nav>
+            ))}
+          </nav>
 
-        <div className="p-2 border-t border-gray-200 dark:border-gray-700 space-y-1">
-          <Link href="/" className="flex items-center gap-3 px-2 py-2 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
-            <Globe className="w-4 h-4 shrink-0"/>
-            {!collapsed && <span>Ir al Diario</span>}
-          </Link>
-          <button onClick={logout} className="w-full flex items-center gap-3 px-2 py-2 rounded-lg text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
-            <LogOut className="w-4 h-4 shrink-0"/>
-            {!collapsed && <span>Cerrar sesión</span>}
-          </button>
+          <div className="p-4 border-t dark:border-gray-700">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-sm">
+                {user?.name?.charAt(0)?.toUpperCase() || 'U'}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{user?.name || 'Usuario'}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{user?.role || ''}</p>
+              </div>
+            </div>
+            <button onClick={handleLogout} className="w-full text-left text-sm text-red-600 hover:text-red-800 dark:text-red-400 px-2 py-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20">
+              Cerrar sesión
+            </button>
+          </div>
         </div>
       </aside>
 
+      {/* Contenido */}
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="h-14 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between px-6">
-          <h2 className="font-semibold text-gray-900 dark:text-white text-sm">
-            {navItems.find(n => n.href === pathname)?.label || 'Dashboard'}
-          </h2>
-          {user && <span className="text-sm text-gray-600 dark:text-gray-400">{user.email}</span>}
+        {/* Topbar */}
+        <header className="bg-white dark:bg-gray-800 shadow-sm px-6 py-4 flex items-center justify-between lg:hidden">
+          <button onClick={() => setSidebarOpen(true)} className="text-gray-500 hover:text-gray-700 dark:text-gray-400">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
+          </button>
+          <span className="font-semibold text-gray-900 dark:text-white">Panel</span>
+          <div className="w-6" />
         </header>
-        <main className="flex-1 p-6 overflow-auto">{children}</main>
+
+        <main className="flex-1 p-6 overflow-y-auto">
+          {children}
+        </main>
       </div>
     </div>
-  )
+  );
 }
