@@ -161,7 +161,7 @@ export default function PlantillasPage() {
     <div>
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Plantillas de Bloque</h1>
-        <p className="text-gray-500 dark:text-gray-400 mt-1">Gestion\u00e1 las plantillas de estructura para armar la portada del sitio.</p>
+        <p className="text-gray-500 dark:text-gray-400 mt-1">Gestioná las plantillas de estructura para armar la portada del sitio.</p>
       </div>
 
       <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
@@ -185,7 +185,7 @@ export default function PlantillasPage() {
       ) : filtered.length === 0 ? (
         <div className="text-center py-20">
           <LayoutTemplate className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-          <p className="text-gray-500 dark:text-gray-400">No hay plantillas a\u00fan</p>
+          <p className="text-gray-500 dark:text-gray-400">No hay plantillas aún</p>
           <button onClick={openNew} className="mt-3 text-blue-600 hover:underline text-sm">Crear primera plantilla</button>
         </div>
       ) : (
@@ -223,7 +223,7 @@ export default function PlantillasPage() {
           <div className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-lg shadow-2xl">
             <div className="p-6 border-b border-gray-200 dark:border-gray-700">
               <h2 className="text-lg font-bold text-gray-900 dark:text-white">Editor de Plantilla</h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Configur\u00e1 la estructura y propiedades de esta plantilla de bloque.</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Configurá la estructura y propiedades de esta plantilla de bloque.</p>
             </div>
             <div className="p-6 space-y-4">
               <div className="grid grid-cols-2 gap-4">
@@ -248,7 +248,7 @@ export default function PlantillasPage() {
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Configuraci\u00f3n y Previsualizaci\u00f3n de Columnas</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Configuración y Previsualización de Columnas</label>
                 <div className="bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/30 rounded-xl p-4 space-y-3">
                   <div className="grid grid-cols-2 gap-3">
                     {form.columns.map((col, i) => (
@@ -284,7 +284,7 @@ export default function PlantillasPage() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-sm shadow-2xl p-6">
             <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-2">Eliminar Plantilla</h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">\u00bfEst\u00e1s seguro? Esta acci\u00f3n no se puede deshacer.</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">¿Estás seguro? Esta acción no se puede deshacer.</p>
             <div className="flex gap-3 justify-end">
               <button onClick={() => setDeleteId(null)} className="px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">Cancelar</button>
               <button onClick={() => handleDelete(deleteId)} className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium transition-colors">Eliminar</button>
