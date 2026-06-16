@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { api } from '@/lib/api'
+import { login } from '@/lib/api'
 
 export default function SignIn() {
   const router = useRouter()
@@ -16,15 +16,15 @@ export default function SignIn() {
     setLoading(true)
     setError('')
     try {
-      const r = await api.post('/signin', { email, password })
-      const token = r.data?.token || r.data?.session?.token
+      const r = await login(email, password)
+      const token = r?.token || r?.data?.token || r?.session?.token
       if (token) {
         localStorage.setItem('token', token)
-        localStorage.setItem('user', JSON.stringify(r.data?.user || r.data))
+        localStorage.setItem('user', JSON.stringify(r?.user || r?.data?.user || r))
         router.push('/dashboard')
       } else { setError('Credenciales incorrectas') }
-    } catch (e: any) {
-      setError(e.response?.data?.message || 'Error al iniciar sesión')
+    } catch (err: any) {
+      setError(err?.message || 'Error al iniciar sesión')
     } finally { setLoading(false) }
   }
 
