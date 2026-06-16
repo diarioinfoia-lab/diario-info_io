@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
-import { getArticles, getCategories, deleteArticle } from '@/lib/api'
-import { Plus, Search, Filter, MoreHorizontal, Edit, Trash2, Upload, ArrowDown, Globe } from 'lucide-react'
+import { getArticles, getCategories, deleteArticle, createArticle } from '@/lib/api'
+import { Plus, Search, Filter, MoreHorizontal, Edit, Trash2, Upload, ArrowDown, Globe, Newspaper } from 'lucide-react'
 import Link from 'next/link'
 
 export default function ArticlesPage() {
@@ -38,7 +38,7 @@ export default function ArticlesPage() {
   useEffect(() => { load() }, [load])
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Â¿Eliminar este artÃ­culo?')) return
+    if (!confirm('ÃÂ¿Eliminar este artÃÂ­culo?')) return
     try { await deleteArticle(id); setArticles(a => a.filter(x => x._id !== id)) } catch { alert('Error al eliminar') }
   }
 
@@ -50,7 +50,7 @@ export default function ArticlesPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Noticias</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Edita, crea y gestiona todos los artÃ­culos del diario.</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Edita, crea y gestiona todos los artÃÂ­culos del diario.</p>
         </div>
         <div className="flex items-center gap-3">
           <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
@@ -67,7 +67,7 @@ export default function ArticlesPage() {
         <div className="p-4 flex items-center gap-3 border-b border-gray-100 dark:border-gray-800">
           <div className="flex-1 relative">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"/>
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar por tÃ­tulo, categorÃ­a o autor..."
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar por tÃÂ­tulo, categorÃÂ­a o autor..."
               className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-gray-50 dark:bg-gray-800 border-0 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 dark:text-white"/>
           </div>
           {/* Estado filter */}
@@ -87,11 +87,11 @@ export default function ArticlesPage() {
               </div>
             )}
           </div>
-          {/* CategorÃ­as filter */}
+          {/* CategorÃÂ­as filter */}
           <div className="relative">
             <button onClick={() => { setShowCatMenu(!showCatMenu); setShowStatusMenu(false) }}
               className="flex items-center gap-2 px-4 py-2.5 border border-gray-200 dark:border-gray-700 rounded-xl text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800">
-              <Filter className="w-4 h-4"/> CategorÃ­as
+              <Filter className="w-4 h-4"/> CategorÃÂ­as
             </button>
             {showCatMenu && (
               <div className="absolute top-full mt-1 right-0 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg z-10 min-w-[160px]">
@@ -107,14 +107,14 @@ export default function ArticlesPage() {
 
         {/* Table header */}
         <div className="grid grid-cols-[2fr_1fr_1fr_100px_120px_60px] gap-4 px-4 py-3 bg-gray-50 dark:bg-gray-800/50 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider border-b border-gray-100 dark:border-gray-800">
-          <span>TÃ­tulo</span><span>CategorÃ­a</span><span>Autor</span><span>Estado</span><span>Fecha</span><span/>
+          <span>TÃÂ­tulo</span><span>CategorÃÂ­a</span><span>Autor</span><span>Estado</span><span>Fecha</span><span/>
         </div>
 
         {/* Rows */}
         {loading && page === 1 ? (
           <div className="p-8 text-center text-gray-400 text-sm">Cargando...</div>
         ) : articles.length === 0 ? (
-          <div className="p-8 text-center text-gray-400 text-sm">No hay artÃ­culos</div>
+          <div className="p-8 text-center text-gray-400 text-sm">No hay artÃÂ­culos</div>
         ) : (
           articles.map(a => (
             <div key={a._id} className="grid grid-cols-[2fr_1fr_1fr_100px_120px_60px] gap-4 px-4 py-3 border-b border-gray-50 dark:border-gray-800 hover:bg-gray-50/50 dark:hover:bg-gray-800/30 items-center group">
@@ -148,7 +148,7 @@ export default function ArticlesPage() {
         {articles.length < total && (
           <div className="p-4 text-center">
             <button onClick={() => setPage(p => p + 1)} className="text-sm text-rose-600 hover:text-rose-700 font-medium">
-              {loading ? 'Cargando...' : 'Cargar mÃ¡s'}
+              {loading ? 'Cargando...' : 'Cargar mÃÂ¡s'}
             </button>
           </div>
         )}
@@ -170,10 +170,10 @@ function ArticleModal({ onClose, onSave, categories }: any) {
   const addTag = () => { if (tag.trim()) { set('tags', [...form.tags, tag.trim()]); setTag('') } }
 
   const handleSave = async (status: string) => {
-    if (!form.title.trim()) { alert('El tÃ­tulo es requerido'); return }
+    if (!form.title.trim()) { alert('El tÃÂ­tulo es requerido'); return }
     setSaving(true)
     try {
-      const { createArticle } = await import('@/lib/api')
+      await createArticle({ ...form, status, category: form.categoryId || undefined })
       await createArticle({ ...form, status, category: form.categoryId || undefined })
       onSave()
     } catch (e: any) { alert(e.message || 'Error al guardar') }
@@ -188,17 +188,17 @@ function ArticleModal({ onClose, onSave, categories }: any) {
             <Newspaper className="w-5 h-5 text-gray-600 dark:text-gray-400"/>
           </div>
           <div>
-            <h2 className="font-bold text-gray-900 dark:text-white">Nueva PublicaciÃ³n</h2>
-            <p className="text-xs text-gray-500">Configura los detalles, contenido y visibilidad de tu artÃ­culo.</p>
+            <h2 className="font-bold text-gray-900 dark:text-white">Nueva PublicaciÃÂ³n</h2>
+            <p className="text-xs text-gray-500">Configura los detalles, contenido y visibilidad de tu artÃÂ­culo.</p>
           </div>
-          <button onClick={onClose} className="ml-auto text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">â</button>
+          <button onClick={onClose} className="ml-auto text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">Ã¢ÂÂ</button>
         </div>
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           {/* Contenido Principal */}
           <div className="bg-gray-50 dark:bg-gray-800/50 rounded-2xl p-5 space-y-4">
             <h3 className="font-semibold text-gray-800 dark:text-white">Contenido Principal</h3>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">TÃ­tulo del artÃ­culo</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">TÃÂ­tulo del artÃÂ­culo</label>
               <input value={form.title} onChange={e => { set('title', e.target.value); set('slug', e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')) }}
                 placeholder="El titular principal" className="w-full border border-gray-300 dark:border-gray-600 rounded-xl px-4 py-2.5 text-sm bg-white dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-rose-500"/>
             </div>
@@ -208,7 +208,7 @@ function ArticleModal({ onClose, onSave, categories }: any) {
                 className="w-full border border-gray-300 dark:border-gray-600 rounded-xl px-4 py-2.5 text-sm bg-white dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-rose-500"/>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">DescripciÃ³n corta</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">DescripciÃÂ³n corta</label>
               <textarea value={form.description} onChange={e => set('description', e.target.value)} rows={3}
                 placeholder="Un resumen atractivo para listados y SEO"
                 className="w-full border border-gray-300 dark:border-gray-600 rounded-xl px-4 py-2.5 text-sm bg-white dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-rose-500 resize-none"/>
@@ -218,30 +218,30 @@ function ArticleModal({ onClose, onSave, categories }: any) {
           <div className="bg-gray-50 dark:bg-gray-800/50 rounded-2xl p-5">
             <h3 className="font-semibold text-gray-800 dark:text-white mb-3">Cuerpo de la Noticia</h3>
             <textarea value={form.content} onChange={e => set('content', e.target.value)} rows={6}
-              placeholder="Escribe el contenido de la noticia aquÃ­..."
+              placeholder="Escribe el contenido de la noticia aquÃÂ­..."
               className="w-full border border-gray-300 dark:border-gray-600 rounded-xl px-4 py-2.5 text-sm bg-white dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-rose-500 resize-none"/>
           </div>
-          {/* CategorÃ­a + Fecha */}
+          {/* CategorÃÂ­a + Fecha */}
           <div className="bg-gray-50 dark:bg-gray-800/50 rounded-2xl p-5">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">CategorÃ­a</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">CategorÃÂ­a</label>
                 <select value={form.categoryId} onChange={e => set('categoryId', e.target.value)}
                   className="w-full border border-gray-300 dark:border-gray-600 rounded-xl px-4 py-2.5 text-sm bg-white dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-rose-500">
-                  <option value="">Seleccionar categorÃ­a</option>
+                  <option value="">Seleccionar categorÃÂ­a</option>
                   {categories.map((c: any) => <option key={c._id} value={c._id}>{c.name}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Fecha de PublicaciÃ³n</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Fecha de PublicaciÃÂ³n</label>
                 <input type="date" defaultValue={new Date().toISOString().split('T')[0]}
                   className="w-full border border-gray-300 dark:border-gray-600 rounded-xl px-4 py-2.5 text-sm bg-white dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-rose-500"/>
               </div>
             </div>
           </div>
-          {/* JerarquÃ­a y SEO */}
+          {/* JerarquÃÂ­a y SEO */}
           <div className="bg-gray-50 dark:bg-gray-800/50 rounded-2xl p-5 space-y-4">
-            <h3 className="font-semibold text-gray-800 dark:text-white">JerarquÃ­a y SEO</h3>
+            <h3 className="font-semibold text-gray-800 dark:text-white">JerarquÃÂ­a y SEO</h3>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Prioridad</label>
@@ -264,14 +264,14 @@ function ArticleModal({ onClose, onSave, categories }: any) {
               </div>
               <div className="flex gap-2">
                 <input value={tag} onChange={e => setTag(e.target.value)} onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addTag())}
-                  placeholder="AÃ±adir etiqueta y presionar Enter"
+                  placeholder="AÃÂ±adir etiqueta y presionar Enter"
                   className="flex-1 border border-gray-300 dark:border-gray-600 rounded-xl px-4 py-2.5 text-sm bg-white dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-rose-500"/>
-                <button onClick={addTag} className="px-4 py-2.5 bg-rose-600 text-white rounded-xl text-sm font-medium hover:bg-rose-700">AÃ±adir</button>
+                <button onClick={addTag} className="px-4 py-2.5 bg-rose-600 text-white rounded-xl text-sm font-medium hover:bg-rose-700">AÃÂ±adir</button>
               </div>
               <div className="flex flex-wrap gap-2 mt-2">
                 {form.tags.map((t, i) => (
                   <span key={i} className="px-3 py-1 bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-300 rounded-full text-xs flex items-center gap-1">
-                    {t} <button onClick={() => set('tags', form.tags.filter((_, j) => j !== i))} className="ml-1 hover:text-rose-900">Ã</button>
+                    {t} <button onClick={() => set('tags', form.tags.filter((_, j) => j !== i))} className="ml-1 hover:text-rose-900">ÃÂ</button>
                   </span>
                 ))}
               </div>
