@@ -6,8 +6,8 @@ import { getBlockTemplates, getBlocks, createBlock, updateBlock, deleteBlock } f
 const DESTINATIONS = [
   { value: 'general', label: 'General' },
   { value: 'deportes', label: 'Deportes' },
-  { value: 'politica', label: 'Pol\u00edtica' },
-  { value: 'economia', label: 'Econom\u00eda' },
+  { value: 'politica', label: 'Política' },
+  { value: 'economia', label: 'Economía' },
 ]
 
 interface Column { type: string }
@@ -233,7 +233,7 @@ export default function EditorPortadaPage() {
     <div className="flex flex-col" style={{minHeight: '80vh'}}>
       <div className="mb-4">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Editor de Portada</h1>
-        <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">Arrastr\u00e1, solt\u00e1 y organiz\u00e1 las instancias de bloques para construir la p\u00e1gina principal.</p>
+        <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">Arrastrá, soltá y organizá las instancias de bloques para construir la página principal.</p>
       </div>
 
       <div className="flex gap-4 flex-1">
@@ -276,11 +276,11 @@ export default function EditorPortadaPage() {
         {/* Panel Derecho */}
         <div className="flex-1 flex flex-col min-w-0">
           <div className="flex items-start justify-between mb-3 gap-2 flex-wrap">
-            <h2 className="font-bold text-gray-900 dark:text-white">Previsualizaci\u00f3n de la Portada</h2>
+            <h2 className="font-bold text-gray-900 dark:text-white">Previsualización de la Portada</h2>
             <div className="flex gap-2 items-center flex-wrap">
               {hasChanges && (
                 <div className="text-xs bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-700 px-3 py-1.5 rounded-lg">
-                  Se detectaron cambios en la portada. Aseg\u00fararte de guardar para que se reflejen en el sitio en vivo.
+                  Se detectaron cambios en la portada. Asegúrarte de guardar para que se reflejen en el sitio en vivo.
                 </div>
               )}
               <button onClick={() => { setHasChanges(false); loadData() }} className="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
@@ -299,8 +299,8 @@ export default function EditorPortadaPage() {
             ) : blocks.length === 0 ? (
               <div className="text-center py-20">
                 <LayoutTemplate className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                <p className="text-gray-500 dark:text-gray-400 text-sm">La portada est\u00e1 vac\u00eda</p>
-                <p className="text-gray-400 dark:text-gray-500 text-xs mt-1">Hac\u00e9 click en una plantilla del panel izquierdo para agregar bloques</p>
+                <p className="text-gray-500 dark:text-gray-400 text-sm">La portada está vacía</p>
+                <p className="text-gray-400 dark:text-gray-500 text-xs mt-1">Hacé click en una plantilla del panel izquierdo para agregar bloques</p>
               </div>
             ) : blocks.map((block, idx) => (
               <div
@@ -379,7 +379,7 @@ export default function EditorPortadaPage() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-sm shadow-2xl p-6">
             <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-2">Eliminar Bloque</h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">\u00bfEliminamos este bloque de la portada?</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">¿Eliminamos este bloque de la portada?</p>
             <div className="flex gap-3 justify-end">
               <button onClick={() => setDeleteBlockId(null)} className="px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">Cancelar</button>
               <button onClick={() => handleDeleteBlock(deleteBlockId)} className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium transition-colors">Eliminar</button>
