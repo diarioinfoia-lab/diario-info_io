@@ -1,6 +1,6 @@
 'use client'
-import { useState, useEffect } from 'react'
-import { Plus, Pencil, Trash2, Search, LayoutTemplate, PanelLeft, PanelRight, Columns2, Columns3, Columns4, Maximize2, GripVertical } from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+import { Plus, Pencil, Trash2, Search, LayoutTemplate, PanelLeft, PanelRight, Columns2, Columns3, Columns4, Maximize2 } from 'lucide-react'
 import { getBlockTemplates, createBlockTemplate, updateBlockTemplate, deleteBlockTemplate } from '@/lib/api'
 
 const LAYOUTS = [
@@ -15,13 +15,13 @@ const LAYOUTS = [
 const COLUMN_TYPES = ['Noticia', 'Publicidad', 'Multimedia', 'Playlist de Videos']
 
 const COLUMN_COUNT: Record<string, number> = {
-  'Full-width': 1,
-  '2 Cols': 2,
-  '3 Cols': 3,
-  '4 Cols': 4,
-  'Hero (Principal Izquierda)': 3,
-  'Hero (Principal Derecha)': 3,
+  'Full-width': 1, '2 Cols': 2, '3 Cols': 3, '4 Cols': 4,
+  'Hero (Principal Izquierda)': 3, 'Hero (Principal Derecha)': 3,
 }
+
+interface Column { type: string }
+interface Template { id: string; name: string; code: string; layout: string; columns: Column[] }
+interface TemplateRaw extends Omit<Template, 'id'> { id?: string; _id?: string }
 
 function layoutIcon(layout: string) {
   if (layout === 'Full-width') return <Maximize2 className="w-4 h-4 text-gray-500" />
@@ -33,62 +33,51 @@ function layoutIcon(layout: string) {
   return <LayoutTemplate className="w-4 h-4 text-gray-500" />
 }
 
-interface Column { type: string }
-interface Template {
-  id: string
-  name: string
-  code: string
-  layout: string
-  columns: Column[]
+function typeColor(t: string) {
+  if (t === 'Noticia') return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+  if (t === 'Multimedia') return 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300'
+  if (t === 'Publicidad') return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300'
+  return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
 }
 
 function ColumnPreview({ layout, columns }: { layout: string; columns: Column[] }) {
   const isHeroLeft = layout === 'Hero (Principal Izquierda)'
   const isHeroRight = layout === 'Hero (Principal Derecha)'
   const isFull = layout === 'Full-width'
-  
-  const typeColor = (t: string) => {
-    if (t === 'Noticia') return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
-    if (t === 'Multimedia') return 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300'
-    if (t === 'Publicidad') return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300'
-    if (t === 'Playlist de Videos') return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
-    return 'bg-gray-100 text-gray-600'
-  }
 
   if (isFull) {
     return (
-      <div className="w-full h-10 rounded flex items-center justify-center text-xs font-medium">
-        <span className={`px-2 py-1 rounded ${typeColor(columns[0]?.type || 'Noticia')}`}>{columns[0]?.type || 'Noticia'}</span>
+      <div className={`w-full h-10 rounded flex items-center justify-center text-xs font-medium ${typeColor(columns[0]?.type || 'Noticia')}`}>
+        {columns[0]?.type || 'Noticia'}
       </div>
     )
   }
-
   if (isHeroLeft) {
     return (
       <div className="w-full flex gap-1 h-10">
-        <div className={`flex-1 rounded flex items-center justify-center text-xs font-medium ${typeColor(columns[0]?.type || 'Noticia')}`}>{columns[0]?.type?.substring(0,4) || 'Not'}</div>
-        <div className="flex flex-col gap-1 w-1/3">
-          <div className={`flex-1 rounded flex items-center justify-center text-xs ${typeColor(columns[1]?.type || 'Noticia')}`}>{columns[1]?.type?.substring(0,3) || 'Not'}</div>
-          <div className={`flex-1 rounded flex items-center justify-center text-xs ${typeColor(columns[2]?.type || 'Noticia')}`}>{columns[2]?.type?.substring(0,3) || 'Not'}</div>
+        <div className={`flex-1 rounded flex items-center justify-center text-xs font-medium ${typeColor(columns[0]?.type || 'Noticia')}`}>{(columns[0]?.type || '').substring(0,4)}</div>
+        <div className="flex flex-col gap-0.5 w-2/5">
+          {[1,2].map(i => (
+            <div key={i} className={`flex-1 rounded flex items-center justify-center text-xs ${typeColor(columns[i]?.type || 'Noticia')}`}>{(columns[i]?.type || '').substring(0,3)}</div>
+          ))}
         </div>
       </div>
     )
   }
-
   if (isHeroRight) {
     return (
       <div className="w-full flex gap-1 h-10">
-        <div className="flex flex-col gap-1 w-1/3">
-          <div className={`flex-1 rounded flex items-center justify-center text-xs ${typeColor(columns[0]?.type || 'Noticia')}`}>{columns[0]?.type?.substring(0,3) || 'Not'}</div>
-          <div className={`flex-1 rounded flex items-center justify-center text-xs ${typeColor(columns[1]?.type || 'Noticia')}`}>{columns[1]?.type?.substring(0,3) || 'Not'}</div>
+        <div className="flex flex-col gap-0.5 w-2/5">
+          {[0,1].map(i => (
+            <div key={i} className={`flex-1 rounded flex items-center justify-center text-xs ${typeColor(columns[i]?.type || 'Noticia')}`}>{(columns[i]?.type || '').substring(0,3)}</div>
+          ))}
         </div>
-        <div className={`flex-1 rounded flex items-center justify-center text-xs font-medium ${typeColor(columns[2]?.type || 'Noticia')}`}>{columns[2]?.type?.substring(0,4) || 'Not'}</div>
+        <div className={`flex-1 rounded flex items-center justify-center text-xs font-medium ${typeColor(columns[2]?.type || 'Noticia')}`}>{(columns[2]?.type || '').substring(0,4)}</div>
       </div>
     )
   }
-
   return (
-    <div className={`w-full flex gap-1 h-10`}>
+    <div className="w-full flex gap-1 h-10">
       {columns.map((col, i) => (
         <div key={i} className={`flex-1 rounded flex items-center justify-center text-xs font-medium ${typeColor(col.type)}`}>
           {col.type.substring(0, 3)}
@@ -106,7 +95,6 @@ export default function PlantillasPage() {
   const [editTemplate, setEditTemplate] = useState<Template | null>(null)
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
-
   const [form, setForm] = useState({ name: '', code: '', layout: 'Full-width', columns: [{ type: 'Noticia' }] })
 
   useEffect(() => { loadTemplates() }, [])
@@ -115,7 +103,7 @@ export default function PlantillasPage() {
     setLoading(true)
     try {
       const data = await getBlockTemplates()
-      const list = (data.templates || []).map((t: Template) => ({ ...t, id: t.id || (t as Record<string,string>)._id }))
+      const list: Template[] = (data.templates || []).map((t: TemplateRaw) => ({ ...t, id: t.id || t._id || '' }))
       setTemplates(list)
     } catch (e) { console.error(e) }
     setLoading(false)
@@ -135,7 +123,7 @@ export default function PlantillasPage() {
 
   function handleLayoutChange(layout: string) {
     const count = COLUMN_COUNT[layout] || 1
-    const newCols = Array.from({ length: count }, (_, i) => ({ type: form.columns[i]?.type || 'Noticia' }))
+    const newCols = Array.from({ length: count }, (_: unknown, i: number) => ({ type: form.columns[i]?.type || 'Noticia' }))
     setForm(f => ({ ...f, layout, columns: newCols }))
   }
 
@@ -147,7 +135,7 @@ export default function PlantillasPage() {
     if (!form.name.trim()) return
     setSaving(true)
     try {
-      const payload = { name: form.name, code: form.code || form.name.toUpperCase().replace(/\s+/g, '_'), layout: form.layout, columns: form.columns }
+      const payload = { name: form.name, code: form.code || form.name.toUpperCase().replace(/\\s+/g, '_'), layout: form.layout, columns: form.columns }
       if (editTemplate) {
         await updateBlockTemplate(editTemplate.id, payload)
       } else {
@@ -173,7 +161,7 @@ export default function PlantillasPage() {
     <div>
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Plantillas de Bloque</h1>
-        <p className="text-gray-500 dark:text-gray-400 mt-1">Gestioná las plantillas de estructura para armar la portada del sitio.</p>
+        <p className="text-gray-500 dark:text-gray-400 mt-1">Gestion\u00e1 las plantillas de estructura para armar la portada del sitio.</p>
       </div>
 
       <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
@@ -197,7 +185,7 @@ export default function PlantillasPage() {
       ) : filtered.length === 0 ? (
         <div className="text-center py-20">
           <LayoutTemplate className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-          <p className="text-gray-500 dark:text-gray-400">No hay plantillas aún</p>
+          <p className="text-gray-500 dark:text-gray-400">No hay plantillas a\u00fan</p>
           <button onClick={openNew} className="mt-3 text-blue-600 hover:underline text-sm">Crear primera plantilla</button>
         </div>
       ) : (
@@ -230,13 +218,12 @@ export default function PlantillasPage() {
         </div>
       )}
 
-      {/* Modal Editor de Plantilla */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-lg shadow-2xl">
             <div className="p-6 border-b border-gray-200 dark:border-gray-700">
               <h2 className="text-lg font-bold text-gray-900 dark:text-white">Editor de Plantilla</h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Configurá la estructura y propiedades de esta plantilla de bloque.</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Configur\u00e1 la estructura y propiedades de esta plantilla de bloque.</p>
             </div>
             <div className="p-6 space-y-4">
               <div className="grid grid-cols-2 gap-4">
@@ -261,11 +248,11 @@ export default function PlantillasPage() {
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Configuración y Previsualización de Columnas</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Configuraci\u00f3n y Previsualizaci\u00f3n de Columnas</label>
                 <div className="bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/30 rounded-xl p-4 space-y-3">
-                  {form.columns.map((col, i) => (
-                    <div key={i} className="grid grid-cols-2 gap-3">
-                      <div>
+                  <div className="grid grid-cols-2 gap-3">
+                    {form.columns.map((col, i) => (
+                      <div key={i}>
                         <span className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1 block">Columna {i + 1}</span>
                         <select
                           className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -275,9 +262,9 @@ export default function PlantillasPage() {
                           {COLUMN_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
                         </select>
                       </div>
-                    </div>
-                  ))}
-                  <div className="mt-3">
+                    ))}
+                  </div>
+                  <div className="mt-2">
                     <ColumnPreview layout={form.layout} columns={form.columns} />
                   </div>
                 </div>
@@ -293,12 +280,11 @@ export default function PlantillasPage() {
         </div>
       )}
 
-      {/* Modal Confirmar Eliminar */}
       {deleteId && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-sm shadow-2xl p-6">
             <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-2">Eliminar Plantilla</h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">¿Estás seguro? Esta acción no se puede deshacer.</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">\u00bfEst\u00e1s seguro? Esta acci\u00f3n no se puede deshacer.</p>
             <div className="flex gap-3 justify-end">
               <button onClick={() => setDeleteId(null)} className="px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">Cancelar</button>
               <button onClick={() => handleDelete(deleteId)} className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium transition-colors">Eliminar</button>
