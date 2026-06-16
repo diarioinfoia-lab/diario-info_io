@@ -297,3 +297,22 @@ export async function deletePlaylist(id: string) {
   });
   return res.json();
 }
+
+// Profile
+export async function updateProfile(data: Record<string, unknown>) {
+  const res = await fetch(`${API}/me`, {
+    method: 'PUT',
+    headers: authHeaders(),
+    body: JSON.stringify(data),
+  });
+  return res.json();
+}
+
+export async function updatePassword(data: Record<string, unknown>) {
+  const res = await fetch(`${API}/me/password`, {
+    method: 'PUT',
+    headers: authHeaders(),
+    body: JSON.stringify(data),
+  });
+  return res.json();
+}
