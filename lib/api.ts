@@ -55,9 +55,11 @@ export async function getArticles(params?: Record<string, string>) {
   return res.json();
 }
 
-export async function getPublicArticles(params?: Record<string, string>) {
-  const query = params ? '?' + new URLSearchParams(params).toString() : '';
-  const res = await fetch(`${API_BASE}/articles/public${query}`, { headers: authHeaders() });
+export async function getPublicArticles(params?: Record<string, string | number | undefined>) {
+  const q = new URLSearchParams();
+  if (params) { Object.entries(params).forEach(([k, v]) => { if (v !== undefined) q.set(k, String(v)); }); }
+  const query = q.toString() ? '?' + q.toString() : '';
+  const res = await fetch(API_BASE + '/articles/public' + query, { headers: authHeaders() });
   return res.json();
 }
 
