@@ -14,7 +14,9 @@ export default function CategoriesPage() {
     setLoading(true)
     try {
       const r = await getCategories()
-      setCategories(r?.categories || r?.data || (Array.isArray(r) ? r : []))
+      const cats = r?.categories || r?.data || (Array.isArray(r) ? r : [])
+      // Normalizar _id
+      setCategories(cats.map((c: any) => ({ ...c, _id: c._id || c.id })))
     } catch { }
     setLoading(false)
   }
@@ -28,7 +30,7 @@ export default function CategoriesPage() {
 
   const handleDelete = async (id: string) => {
     if (!confirm('¿Eliminar esta categoría?')) return
-    try { await deleteCategory(id); setCategories(c => c.filter(x => x._id !== id)) } catch { alert('Error') }
+    try { await deleteCategory(id); setCategories(c => c.filter(x => x._id !== id)) } catch { alert('Error al eliminar') }
   }
 
   return (
@@ -59,26 +61,24 @@ export default function CategoriesPage() {
           <div className="p-8 text-center text-gray-400 text-sm">Cargando...</div>
         ) : filtered.length === 0 ? (
           <div className="p-8 text-center text-gray-400 text-sm">No hay categorías</div>
-        ) : (
-          filtered.map((c, i) => (
-            <div key={c._id} className="grid grid-cols-[40px_80px_80px_150px_150px_1fr_80px] gap-4 px-4 py-3 border-b border-gray-50 dark:border-gray-800 hover:bg-gray-50/50 dark:hover:bg-gray-800/30 items-center group">
-              <GripVertical className="w-4 h-4 text-gray-300 cursor-grab"/>
-              <div className="w-8 h-8 rounded-full" style={{ backgroundColor: c.color || '#6366f1' }}/>
-              <span className="text-sm text-gray-600 dark:text-gray-400">{i + 1} º</span>
-              <span className="text-sm font-medium text-gray-800 dark:text-white">{c.name}</span>
-              <span className="text-xs font-mono text-gray-500 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded">{c.slug}</span>
-              <span className="text-sm text-gray-500 dark:text-gray-400 truncate">{c.description}</span>
-              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button onClick={() => { setEditing(c); setShowModal(true) }} className="p-1.5 hover:text-rose-600 text-gray-400 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors">
-                  <Edit className="w-3.5 h-3.5"/>
-                </button>
-                <button onClick={() => handleDelete(c._id)} className="p-1.5 hover:text-red-500 text-gray-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
-                  <Trash2 className="w-3.5 h-3.5"/>
-                </button>
-              </div>
+        ) : filtered.map((c, i) => (
+          <div key={c._id} className="grid grid-cols-[40px_80px_80px_150px_150px_1fr_80px] gap-4 px-4 py-3 border-b border-gray-50 dark:border-gray-800 hover:bg-gray-50/50 dark:hover:bg-gray-800/30 items-center group">
+            <GripVertical className="w-4 h-4 text-gray-300 cursor-grab"/>
+            <div className="w-8 h-8 rounded-full border-2 border-white shadow-sm" style={{ backgroundColor: c.color }}/>
+            <span className="text-sm text-gray-600 dark:text-gray-400">{(c.order !== undefined ? c.order : i) + 1} º</span>
+            <span className="text-sm font-medium text-gray-900 dark:text-white">{c.name}</span>
+            <span className="text-xs font-mono bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded text-gray-500 dark:text-gray-400">{c.slug}</span>
+            <span className="text-sm text-gray-500 dark:text-gray-400 truncate">{c.description}</span>
+            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <button onClick={() => { setEditing(c); setShowModal(true) }} className="p-1.5 hover:text-rose-600 text-gray-400 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors">
+                <Edit className="w-4 h-4"/>
+              </button>
+              <button onClick={() => handleDelete(c._id)} className="p-1.5 hover:text-red-500 text-gray-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                <Trash2 className="w-4 h-4"/>
+              </button>
             </div>
-          ))
-        )}
+          </div>
+        ))}
       </div>
 
       {showModal && (
@@ -96,7 +96,7 @@ function CategoryModal({ category, onClose, onSave }: any) {
   const [form, setForm] = useState({ name: category?.name || '', slug: category?.slug || '', description: category?.description || '', color: category?.color || '#6366f1' })
   const [saving, setSaving] = useState(false)
 
-  const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }))
+  const setField = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }))
 
   const handleSave = async () => {
     if (!form.name.trim()) { alert('El nombre es requerido'); return }
@@ -105,7 +105,7 @@ function CategoryModal({ category, onClose, onSave }: any) {
       if (category) await updateCategory(category._id, form)
       else await createCategory(form)
       onSave()
-    } catch (e: any) { alert(e.message || 'Error') }
+    } catch (e: any) { alert(e.message || 'Error al guardar') }
     setSaving(false)
   }
 
@@ -116,37 +116,41 @@ function CategoryModal({ category, onClose, onSave }: any) {
       <div className="bg-white dark:bg-gray-900 rounded-2xl w-full max-w-md">
         <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
           <h2 className="font-bold text-gray-900 dark:text-white">{category ? 'Editar Categoría' : 'Nueva Categoría'}</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">✕</button>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
         </div>
         <div className="p-6 space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nombre</label>
-            <input value={form.name} onChange={e => { set('name', e.target.value); if (!category) set('slug', e.target.value.toLowerCase().replace(/s+/g, '-').replace(/[^a-z0-9-]/g, '')) }}
+            <input value={form.name} onChange={e => { setField('name', e.target.value); if (!category) setField('slug', e.target.value.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')) }}
               className="w-full border border-gray-300 dark:border-gray-600 rounded-xl px-4 py-2.5 text-sm bg-white dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-rose-500"/>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Slug</label>
-            <input value={form.slug} onChange={e => set('slug', e.target.value)}
+            <input value={form.slug} onChange={e => setField('slug', e.target.value)}
               className="w-full border border-gray-300 dark:border-gray-600 rounded-xl px-4 py-2.5 text-sm bg-white dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-rose-500"/>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Descripción</label>
-            <textarea value={form.description} onChange={e => set('description', e.target.value)} rows={3}
+            <textarea value={form.description} onChange={e => setField('description', e.target.value)} rows={3}
               className="w-full border border-gray-300 dark:border-gray-600 rounded-xl px-4 py-2.5 text-sm bg-white dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-rose-500 resize-none"/>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Color</label>
             <div className="flex gap-2 flex-wrap">
-              {colors.map(color => (
-                <button key={color} onClick={() => set('color', color)} className={`w-8 h-8 rounded-full transition-transform hover:scale-110 ${form.color === color ? 'ring-2 ring-offset-2 ring-gray-900 dark:ring-white scale-110' : ''}`} style={{ backgroundColor: color }}/>
+              {colors.map(col => (
+                <button key={col} onClick={() => setField('color', col)}
+                  className={`w-8 h-8 rounded-full border-2 transition-transform hover:scale-110 ${form.color === col ? 'border-gray-900 dark:border-white scale-110' : 'border-transparent'}`}
+                  style={{ backgroundColor: col }}/>
               ))}
-              <input type="color" value={form.color} onChange={e => set('color', e.target.value)} className="w-8 h-8 rounded-full cursor-pointer"/>
+              <input type="color" value={form.color} onChange={e => setField('color', e.target.value)}
+                className="w-8 h-8 rounded-full cursor-pointer border-2 border-gray-200"/>
             </div>
           </div>
         </div>
-        <div className="flex justify-between p-6 border-t border-gray-100 dark:border-gray-800">
-          <button onClick={onClose} className="px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-700 dark:text-gray-300">Cancelar</button>
-          <button onClick={handleSave} disabled={saving} className="px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-sm font-semibold disabled:opacity-60">
+        <div className="px-6 pb-6 flex justify-end gap-3">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors">Cancelar</button>
+          <button onClick={handleSave} disabled={saving}
+            className="px-6 py-2 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-colors">
             {saving ? 'Guardando...' : 'Guardar'}
           </button>
         </div>
