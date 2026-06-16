@@ -1,8 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { getArticles, getCategories, deleteArticle, createArticle } from '@/lib/api'
-import { Plus, Search, Filter, MoreHorizontal, Edit, Trash2, Upload, ArrowDown, Globe, Newspaper } from 'lucide-react'
-import Link from 'next/link'
+import { Plus, Search, Filter, MoreHorizontal, Trash2, Upload, ArrowDown, Globe, Newspaper } from 'lucide-react'
 
 export default function ArticlesPage() {
   const [articles, setArticles] = useState<any[]>([])
@@ -23,15 +22,21 @@ export default function ArticlesPage() {
       const params: any = { page, limit: 20 }
       if (search) params.search = search
       const r = await getArticles(params)
-      if (page === 1) setArticles(r?.articles || r?.data || [])
-      else setArticles(prev => [...prev, ...(r?.articles || r?.data || [])])
+      const arts = r?.articles || r?.data || []
+      // Normalizar _id
+      const normalized = arts.map((a: any) => ({ ...a, _id: a._id || a.id }))
+      if (page === 1) setArticles(normalized)
+      else setArticles(prev => [...prev, ...normalized])
       setTotal(r?.total || 0)
     } catch { }
     setLoading(false)
   }, [page, search])
 
-  useEffect(() => { 
-    getCategories().then(r => setCategories(r?.categories || r?.data || (Array.isArray(r) ? r : [])))
+  useEffect(() => {
+    getCategories().then(r => {
+      const cats = r?.categories || r?.data || (Array.isArray(r) ? r : [])
+      setCategories(cats.map((c: any) => ({ ...c, _id: c._id || c.id })))
+    })
   }, [])
 
   useEffect(() => { setPage(1) }, [search, statusFilter, catFilter])
@@ -43,7 +48,15 @@ export default function ArticlesPage() {
   }
 
   const statusLabel = (s: string) => s === 'published' ? 'Publicado' : s === 'draft' ? 'Borrador' : s || 'Publicado'
-  const statusColor = (s: string) => s === 'draft' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+  const statusColor = (s: string) => s === 'draft'
+    ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+    : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+
+  const filtered = articles.filter(a => {
+    if (statusFilter && a.status !== statusFilter) return false
+    if (catFilter && (a.category?._id || a.category?.id || a.category) !== catFilter) return false
+    return true
+  })
 
   return (
     <div>
@@ -62,21 +75,17 @@ export default function ArticlesPage() {
         </div>
       </div>
 
-      {/* Filtros */}
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
         <div className="flex items-center gap-4 p-4 border-b border-gray-100 dark:border-gray-700">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"/>
-            <input
-              type="text"
-              placeholder="Buscar por título, categoría o autor..."
-              value={search}
+            <input type="text" placeholder="Buscar por título, categoría o autor..." value={search}
               onChange={e => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-700 rounded-xl border-0 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-rose-500"
-            />
+              className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-700 rounded-xl border-0 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-rose-500"/>
           </div>
           <div className="relative">
-            <button onClick={() => setShowStatusMenu(!showStatusMenu)} className="flex items-center gap-2 px-4 py-2 bg-gray-50 dark:bg-gray-700 rounded-xl text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
+            <button onClick={() => { setShowStatusMenu(!showStatusMenu); setShowCatMenu(false) }}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-50 dark:bg-gray-700 rounded-xl text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
               <Filter className="w-4 h-4"/> Estado
             </button>
             {showStatusMenu && (
@@ -91,7 +100,8 @@ export default function ArticlesPage() {
             )}
           </div>
           <div className="relative">
-            <button onClick={() => setShowCatMenu(!showCatMenu)} className="flex items-center gap-2 px-4 py-2 bg-gray-50 dark:bg-gray-700 rounded-xl text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
+            <button onClick={() => { setShowCatMenu(!showCatMenu); setShowStatusMenu(false) }}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-50 dark:bg-gray-700 rounded-xl text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
               <Filter className="w-4 h-4"/> Categorías
             </button>
             {showCatMenu && (
@@ -111,7 +121,6 @@ export default function ArticlesPage() {
           </div>
         </div>
 
-        {/* Tabla */}
         <table className="w-full">
           <thead>
             <tr className="border-b border-gray-100 dark:border-gray-700">
@@ -126,7 +135,7 @@ export default function ArticlesPage() {
           <tbody>
             {loading ? (
               <tr><td colSpan={6} className="text-center py-12 text-gray-500">Cargando...</td></tr>
-            ) : articles.length === 0 ? (
+            ) : filtered.length === 0 ? (
               <tr>
                 <td colSpan={6} className="py-16">
                   <div className="flex flex-col items-center gap-3 text-gray-400">
@@ -136,18 +145,18 @@ export default function ArticlesPage() {
                   </div>
                 </td>
               </tr>
-            ) : articles.map(a => (
+            ) : filtered.map(a => (
               <tr key={a._id} className="border-b border-gray-50 dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-3">
-                    {a.image && <img src={a.image} alt="" className="w-10 h-10 rounded-lg object-cover"/>}
+                    {a.image && <img src={a.image} alt="" className="w-10 h-10 rounded-lg object-cover flex-shrink-0"/>}
                     <div>
                       <p className="text-sm font-medium text-gray-900 dark:text-white line-clamp-1">{a.title}</p>
-                      <p className="text-xs text-gray-500 line-clamp-1">{a.subtitle || a.summary}</p>
+                      <p className="text-xs text-gray-500 line-clamp-1">{a.description || a.subtitle || a.summary}</p>
                     </div>
                   </div>
                 </td>
-                <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{a.category?.name || a.category || '-'}</td>
+                <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{a.category?.name || '-'}</td>
                 <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{a.author?.name || a.author || '-'}</td>
                 <td className="px-4 py-3">
                   <span className={`text-xs px-2 py-1 rounded-full font-medium ${statusColor(a.status)}`}>{statusLabel(a.status)}</span>
@@ -168,7 +177,6 @@ export default function ArticlesPage() {
           </tbody>
         </table>
 
-        {/* Paginacion */}
         {total > 20 && (
           <div className="flex justify-center p-4">
             <button onClick={() => setPage(p => p + 1)} className="flex items-center gap-2 text-sm text-rose-600 hover:underline">
@@ -178,29 +186,45 @@ export default function ArticlesPage() {
         )}
       </div>
 
-      {/* Modal Nueva Noticia */}
-      {showNew && <ArticleModal categories={categories} onClose={() => setShowNew(false)} onCreated={() => { setShowNew(false); setPage(1); load() }}/>}
+      {showNew && (
+        <ArticleModal
+          categories={categories}
+          onClose={() => setShowNew(false)}
+          onCreated={() => { setShowNew(false); setPage(1); load() }}
+        />
+      )}
     </div>
   )
 }
 
 function ArticleModal({ categories, onClose, onCreated }: { categories: any[], onClose: () => void, onCreated: () => void }) {
-  const [form, setForm] = useState({ title: '', subtitle: '', body: '', category: '', status: 'draft', tags: '', image: '' })
+  const [form, setForm] = useState({
+    title: '',
+    description: '',
+    content: '',
+    category: '',
+    status: 'draft',
+    tags: '',
+    image: '',
+    slug: ''
+  })
   const [saving, setSaving] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setSaving(true)
     try {
-      const payload = {
+      const payload: any = {
         title: form.title,
-        subtitle: form.subtitle,
-        body: form.body,
-        category: form.category,
+        description: form.description,
+        content: form.content,
         status: form.status,
         tags: form.tags ? form.tags.split(',').map(t => t.trim()).filter(Boolean) : [],
-        image: form.image || undefined,
       }
+      if (form.category) payload.category = form.category
+      if (form.image) payload.image = form.image
+      if (form.slug) payload.slug = form.slug
+      else payload.slug = form.title.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') + '-' + Date.now()
       await createArticle(payload)
       onCreated()
     } catch (err: any) {
@@ -222,27 +246,31 @@ function ArticleModal({ categories, onClose, onCreated }: { categories: any[], o
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Título *</label>
-            <input required value={form.title} onChange={e => setForm(f => ({...f, title: e.target.value}))}
+            <input required value={form.title}
+              onChange={e => setForm(f => ({...f, title: e.target.value}))}
               className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 rounded-xl border border-gray-200 dark:border-gray-600 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500"
               placeholder="Título de la noticia"/>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Subtítulo</label>
-            <input value={form.subtitle} onChange={e => setForm(f => ({...f, subtitle: e.target.value}))}
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Descripción / Subtítulo</label>
+            <input value={form.description}
+              onChange={e => setForm(f => ({...f, description: e.target.value}))}
               className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 rounded-xl border border-gray-200 dark:border-gray-600 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500"
-              placeholder="Subtítulo opcional"/>
+              placeholder="Breve descripción de la noticia"/>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Cuerpo *</label>
-            <textarea required value={form.body} onChange={e => setForm(f => ({...f, body: e.target.value}))}
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Contenido *</label>
+            <textarea required value={form.content}
+              onChange={e => setForm(f => ({...f, content: e.target.value}))}
               rows={6}
               className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 rounded-xl border border-gray-200 dark:border-gray-600 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 resize-none"
-              placeholder="Contenido de la noticia..."/>
+              placeholder="Contenido completo de la noticia..."/>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Categoría</label>
-              <select value={form.category} onChange={e => setForm(f => ({...f, category: e.target.value}))}
+              <select value={form.category}
+                onChange={e => setForm(f => ({...f, category: e.target.value}))}
                 className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 rounded-xl border border-gray-200 dark:border-gray-600 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500">
                 <option value="">Sin categoría</option>
                 {categories.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
@@ -250,7 +278,8 @@ function ArticleModal({ categories, onClose, onCreated }: { categories: any[], o
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Estado</label>
-              <select value={form.status} onChange={e => setForm(f => ({...f, status: e.target.value}))}
+              <select value={form.status}
+                onChange={e => setForm(f => ({...f, status: e.target.value}))}
                 className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 rounded-xl border border-gray-200 dark:border-gray-600 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500">
                 <option value="draft">Borrador</option>
                 <option value="published">Publicado</option>
@@ -259,13 +288,15 @@ function ArticleModal({ categories, onClose, onCreated }: { categories: any[], o
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tags (separados por coma)</label>
-            <input value={form.tags} onChange={e => setForm(f => ({...f, tags: e.target.value}))}
+            <input value={form.tags}
+              onChange={e => setForm(f => ({...f, tags: e.target.value}))}
               className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 rounded-xl border border-gray-200 dark:border-gray-600 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500"
               placeholder="ej: política, economía, deporte"/>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">URL Imagen</label>
-            <input value={form.image} onChange={e => setForm(f => ({...f, image: e.target.value}))}
+            <input value={form.image}
+              onChange={e => setForm(f => ({...f, image: e.target.value}))}
               className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 rounded-xl border border-gray-200 dark:border-gray-600 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500"
               placeholder="https://..."/>
           </div>
