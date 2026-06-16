@@ -1,21 +1,21 @@
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
-import { api } from '@/lib/api'
+import { getPublicArticle } from '@/lib/api'
 import { formatDate, getImageUrl } from '@/lib/utils'
 import Image from 'next/image'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import type { Article } from '@/types'
 
-async function getArticle(id: string): Promise<Article | null> {
+async function fetchArticle(id: string): Promise<Article | null> {
   try {
-    const r = await api.get(`/articles/${id}`)
-    return r.data?.article || r.data
+    const r = await getPublicArticle(id)
+    return r?.article || r?.data || r
   } catch { return null }
 }
 
 export default async function ArticlePage({ params }: { params: { id: string } }) {
-  const article = await getArticle(params.id)
+  const article = await fetchArticle(params.id)
   if (!article) notFound()
 
   return (
