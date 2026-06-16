@@ -1,23 +1,21 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://api2.diarioinfo.com';
+const API = 'https://api2.diarioinfo.com';
 
 function getToken() {
   if (typeof window !== 'undefined') {
-    return localStorage.getItem('token');
+    return localStorage.getItem('token') || '';
   }
-  return null;
+  return '';
 }
 
 function authHeaders() {
-  const token = getToken();
   return {
     'Content-Type': 'application/json',
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    Authorization: `Bearer ${getToken()}`,
   };
 }
 
-// Auth
 export async function signIn(email: string, password: string) {
-  const res = await fetch(`${API_BASE}/signin`, {
+  const res = await fetch(`${API}/signin`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password }),
@@ -25,13 +23,15 @@ export async function signIn(email: string, password: string) {
   return res.json();
 }
 
+export const login = signIn;
+
 export async function getMe() {
-  const res = await fetch(`${API_BASE}/me`, { headers: authHeaders() });
+  const res = await fetch(`${API}/me`, { headers: authHeaders() });
   return res.json();
 }
 
-export async function updateProfile(data: Record<string, unknown>) {
-  const res = await fetch(`${API_BASE}/me`, {
+export async function updateMe(data: Record<string, unknown>) {
+  const res = await fetch(`${API}/me`, {
     method: 'PUT',
     headers: authHeaders(),
     body: JSON.stringify(data),
@@ -39,98 +39,15 @@ export async function updateProfile(data: Record<string, unknown>) {
   return res.json();
 }
 
-export async function updatePassword(data: Record<string, unknown>) {
-  const res = await fetch(`${API_BASE}/me/password`, {
-    method: 'PUT',
-    headers: authHeaders(),
-    body: JSON.stringify(data),
-  });
-  return res.json();
-}
-
-// Articles
-export async function getArticles(params?: Record<string, string | number | undefined>) {
+export async function getUsers(params?: Record<string, string | number | undefined>) {
   const q = new URLSearchParams();
-  if (params) { Object.entries(params).forEach(([k, v]) => { if (v !== undefined) q.set(k, String(v)); }); }
-  const query = q.toString() ? '?' + q.toString() : '';
-  const res = await fetch(API_BASE + '/articles' + query, { headers: authHeaders() });
-  return res.json();
-}
-
-export async function getPublicArticles(params?: Record<string, string | number | undefined>) {
-  const q = new URLSearchParams();
-  if (params) { Object.entries(params).forEach(([k, v]) => { if (v !== undefined) q.set(k, String(v)); }); }
-  const query = q.toString() ? '?' + q.toString() : '';
-  const res = await fetch(API_BASE + '/articles/public' + query, { headers: authHeaders() });
-  return res.json();
-}
-
-export async function createArticle(data: Record<string, unknown>) {
-  const res = await fetch(`${API_BASE}/articles`, {
-    method: 'POST',
-    headers: authHeaders(),
-    body: JSON.stringify(data),
-  });
-  return res.json();
-}
-
-export async function updateArticle(id: string, data: Record<string, unknown>) {
-  const res = await fetch(`${API_BASE}/article/${id}`, {
-    method: 'PUT',
-    headers: authHeaders(),
-    body: JSON.stringify(data),
-  });
-  return res.json();
-}
-
-export async function deleteArticle(id: string) {
-  const res = await fetch(`${API_BASE}/article/${id}`, {
-    method: 'DELETE',
-    headers: authHeaders(),
-  });
-  return res.json();
-}
-
-// Categories
-export async function getCategories() {
-  const res = await fetch(`${API_BASE}/categories`, { headers: authHeaders() });
-  return res.json();
-}
-
-export async function createCategory(data: Record<string, unknown>) {
-  const res = await fetch(`${API_BASE}/categories`, {
-    method: 'POST',
-    headers: authHeaders(),
-    body: JSON.stringify(data),
-  });
-  return res.json();
-}
-
-export async function updateCategory(id: string, data: Record<string, unknown>) {
-  const res = await fetch(`${API_BASE}/category/${id}`, {
-    method: 'PUT',
-    headers: authHeaders(),
-    body: JSON.stringify(data),
-  });
-  return res.json();
-}
-
-export async function deleteCategory(id: string) {
-  const res = await fetch(`${API_BASE}/category/${id}`, {
-    method: 'DELETE',
-    headers: authHeaders(),
-  });
-  return res.json();
-}
-
-// Users
-export async function getUsers() {
-  const res = await fetch(`${API_BASE}/users`, { headers: authHeaders() });
+  if (params) Object.entries(params).forEach(([k, v]) => v !== undefined && q.set(k, String(v)));
+  const res = await fetch(`${API}/users?${q}`, { headers: authHeaders() });
   return res.json();
 }
 
 export async function createUser(data: Record<string, unknown>) {
-  const res = await fetch(`${API_BASE}/signup`, {
+  const res = await fetch(`${API}/users`, {
     method: 'POST',
     headers: authHeaders(),
     body: JSON.stringify(data),
@@ -139,7 +56,7 @@ export async function createUser(data: Record<string, unknown>) {
 }
 
 export async function updateUser(id: string, data: Record<string, unknown>) {
-  const res = await fetch(`${API_BASE}/user/${id}`, {
+  const res = await fetch(`${API}/user/${id}`, {
     method: 'PUT',
     headers: authHeaders(),
     body: JSON.stringify(data),
@@ -148,33 +65,147 @@ export async function updateUser(id: string, data: Record<string, unknown>) {
 }
 
 export async function deleteUser(id: string) {
-  const res = await fetch(`${API_BASE}/user/${id}`, {
+  const res = await fetch(`${API}/user/${id}`, {
     method: 'DELETE',
     headers: authHeaders(),
   });
   return res.json();
 }
 
-// Logs
-export async function getLogs() {
-  const res = await fetch(`${API_BASE}/logs`, { headers: authHeaders() });
+export async function getCategories(params?: Record<string, string | number | undefined>) {
+  const q = new URLSearchParams();
+  if (params) Object.entries(params).forEach(([k, v]) => v !== undefined && q.set(k, String(v)));
+  const res = await fetch(`${API}/categories?${q}`, { headers: authHeaders() });
   return res.json();
 }
 
-// Notifications
-export async function getNotifications() {
-  const res = await fetch(`${API_BASE}/notifications`, { headers: authHeaders() });
+export async function getCategory(id: string) {
+  const res = await fetch(`${API}/category/${id}`, { headers: authHeaders() });
   return res.json();
 }
 
-// Block Templates (Plantillas)
-export async function getBlockTemplates() {
-  const res = await fetch(`${API_BASE}/block-templates`, { headers: authHeaders() });
+export async function createCategory(data: Record<string, unknown>) {
+  const res = await fetch(`${API}/categories`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify(data),
+  });
+  return res.json();
+}
+
+export async function updateCategory(id: string, data: Record<string, unknown>) {
+  const res = await fetch(`${API}/category/${id}`, {
+    method: 'PUT',
+    headers: authHeaders(),
+    body: JSON.stringify(data),
+  });
+  return res.json();
+}
+
+export async function deleteCategory(id: string) {
+  const res = await fetch(`${API}/category/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  });
+  return res.json();
+}
+
+export async function getPublicArticles(params?: Record<string, string | number | undefined>) {
+  const q = new URLSearchParams();
+  if (params) Object.entries(params).forEach(([k, v]) => v !== undefined && q.set(k, String(v)));
+  const res = await fetch(`${API}/articles?${q}`);
+  return res.json();
+}
+
+export async function getPublicArticle(id: string) {
+  const res = await fetch(`${API}/article/${id}`);
+  return res.json();
+}
+
+export async function getArticles(params?: Record<string, string | number | undefined>) {
+  const q = new URLSearchParams();
+  if (params) Object.entries(params).forEach(([k, v]) => v !== undefined && q.set(k, String(v)));
+  const res = await fetch(`${API}/articles?${q}`, { headers: authHeaders() });
+  return res.json();
+}
+
+export async function getArticle(id: string) {
+  const res = await fetch(`${API}/article/${id}`, { headers: authHeaders() });
+  return res.json();
+}
+
+export async function createArticle(data: Record<string, unknown>) {
+  const res = await fetch(`${API}/articles`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify(data),
+  });
+  return res.json();
+}
+
+export async function updateArticle(id: string, data: Record<string, unknown>) {
+  const res = await fetch(`${API}/article/${id}`, {
+    method: 'PUT',
+    headers: authHeaders(),
+    body: JSON.stringify(data),
+  });
+  return res.json();
+}
+
+export async function deleteArticle(id: string) {
+  const res = await fetch(`${API}/article/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  });
+  return res.json();
+}
+
+export async function getLogs(params?: Record<string, string | number | undefined>) {
+  const q = new URLSearchParams();
+  if (params) Object.entries(params).forEach(([k, v]) => v !== undefined && q.set(k, String(v)));
+  const res = await fetch(`${API}/logs?${q}`, { headers: authHeaders() });
+  return res.json();
+}
+
+export async function getNotifications(params?: Record<string, string | number | undefined>) {
+  const q = new URLSearchParams();
+  if (params) Object.entries(params).forEach(([k, v]) => v !== undefined && q.set(k, String(v)));
+  const res = await fetch(`${API}/notifications?${q}`, { headers: authHeaders() });
+  return res.json();
+}
+
+export async function markNotificationRead(id: string) {
+  const res = await fetch(`${API}/notification/${id}/read`, {
+    method: 'PUT',
+    headers: authHeaders(),
+  });
+  return res.json();
+}
+
+export async function getSettings() {
+  const res = await fetch(`${API}/settings`, { headers: authHeaders() });
+  return res.json();
+}
+
+export async function updateSettings(data: Record<string, unknown>) {
+  const res = await fetch(`${API}/settings`, {
+    method: 'PUT',
+    headers: authHeaders(),
+    body: JSON.stringify(data),
+  });
+  return res.json();
+}
+
+// Block Templates
+export async function getBlockTemplates(params?: Record<string, string | number | undefined>) {
+  const q = new URLSearchParams();
+  if (params) Object.entries(params).forEach(([k, v]) => v !== undefined && q.set(k, String(v)));
+  const res = await fetch(`${API}/block-templates?${q}`, { headers: authHeaders() });
   return res.json();
 }
 
 export async function createBlockTemplate(data: Record<string, unknown>) {
-  const res = await fetch(`${API_BASE}/block-templates`, {
+  const res = await fetch(`${API}/block-templates`, {
     method: 'POST',
     headers: authHeaders(),
     body: JSON.stringify(data),
@@ -183,7 +214,7 @@ export async function createBlockTemplate(data: Record<string, unknown>) {
 }
 
 export async function updateBlockTemplate(id: string, data: Record<string, unknown>) {
-  const res = await fetch(`${API_BASE}/block-template/${id}`, {
+  const res = await fetch(`${API}/block-template/${id}`, {
     method: 'PUT',
     headers: authHeaders(),
     body: JSON.stringify(data),
@@ -192,21 +223,23 @@ export async function updateBlockTemplate(id: string, data: Record<string, unkno
 }
 
 export async function deleteBlockTemplate(id: string) {
-  const res = await fetch(`${API_BASE}/block-template/${id}`, {
+  const res = await fetch(`${API}/block-template/${id}`, {
     method: 'DELETE',
     headers: authHeaders(),
   });
   return res.json();
 }
 
-// Blocks (Instancias de portada)
-export async function getBlocks() {
-  const res = await fetch(`${API_BASE}/blocks`, { headers: authHeaders() });
+// Blocks (Portada)
+export async function getBlocks(params?: Record<string, string | number | undefined>) {
+  const q = new URLSearchParams();
+  if (params) Object.entries(params).forEach(([k, v]) => v !== undefined && q.set(k, String(v)));
+  const res = await fetch(`${API}/blocks?${q}`, { headers: authHeaders() });
   return res.json();
 }
 
 export async function createBlock(data: Record<string, unknown>) {
-  const res = await fetch(`${API_BASE}/blocks`, {
+  const res = await fetch(`${API}/blocks`, {
     method: 'POST',
     headers: authHeaders(),
     body: JSON.stringify(data),
@@ -215,7 +248,7 @@ export async function createBlock(data: Record<string, unknown>) {
 }
 
 export async function updateBlock(id: string, data: Record<string, unknown>) {
-  const res = await fetch(`${API_BASE}/block/${id}`, {
+  const res = await fetch(`${API}/block/${id}`, {
     method: 'PUT',
     headers: authHeaders(),
     body: JSON.stringify(data),
@@ -224,7 +257,7 @@ export async function updateBlock(id: string, data: Record<string, unknown>) {
 }
 
 export async function deleteBlock(id: string) {
-  const res = await fetch(`${API_BASE}/block/${id}`, {
+  const res = await fetch(`${API}/block/${id}`, {
     method: 'DELETE',
     headers: authHeaders(),
   });
@@ -232,36 +265,35 @@ export async function deleteBlock(id: string) {
 }
 
 // Playlists
-export async function getPlaylists() {
-  const res = await fetch(`${API_BASE}/playlists`, { headers: authHeaders() });
-  return res.json();
-}
-
-// Aliases for backward compatibility
-export const login = signIn;
-
-// Additional exports for backward compatibility
-export async function getCategory(id: string) {
-  const res = await fetch(`${API_BASE}/categories/${id}`, { headers: authHeaders() });
-  return res.json();
-}
-
-export async function getPublicArticle(id: string) {
-  const res = await fetch(`${API_BASE}/articles/public/${id}`, { headers: authHeaders() });
-  return res.json();
-}
-
-export async function getArticle(id: string) {
-  const res = await fetch(`${API_BASE}/articles/${id}`, { headers: authHeaders() });
-  return res.json();
-}
-
-export async function searchArticles(params: { search?: string; limit?: number; page?: number; categoryId?: string }) {
+export async function getPlaylists(params?: Record<string, string | number | undefined>) {
   const q = new URLSearchParams();
-  if (params.search) q.set('search', params.search);
-  if (params.limit !== undefined) q.set('limit', String(params.limit));
-  if (params.page !== undefined) q.set('page', String(params.page));
-  if (params.categoryId) q.set('categoryId', params.categoryId);
-  const res = await fetch(`${API_BASE}/articles/public?${q.toString()}`, { headers: authHeaders() });
+  if (params) Object.entries(params).forEach(([k, v]) => v !== undefined && q.set(k, String(v)));
+  const res = await fetch(`${API}/playlists?${q}`, { headers: authHeaders() });
+  return res.json();
+}
+
+export async function createPlaylist(data: Record<string, unknown>) {
+  const res = await fetch(`${API}/playlists`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify(data),
+  });
+  return res.json();
+}
+
+export async function updatePlaylist(id: string, data: Record<string, unknown>) {
+  const res = await fetch(`${API}/playlist/${id}`, {
+    method: 'PUT',
+    headers: authHeaders(),
+    body: JSON.stringify(data),
+  });
+  return res.json();
+}
+
+export async function deletePlaylist(id: string) {
+  const res = await fetch(`${API}/playlist/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  });
   return res.json();
 }
