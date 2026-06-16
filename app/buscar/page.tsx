@@ -1,14 +1,14 @@
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import ArticleCard from '@/components/ArticleCard'
-import { api } from '@/lib/api'
+import { getPublicArticles } from '@/lib/api'
 import type { Article } from '@/types'
 
 async function search(q: string) {
   if (!q) return []
   try {
-    const r = await api.get(`/articles?search=${encodeURIComponent(q)}&limit=20`)
-    return r.data?.articles || r.data || []
+    const r = await getPublicArticles({ search: q, limit: 20 })
+    return r?.articles || r?.data || r || []
   } catch { return [] }
 }
 
