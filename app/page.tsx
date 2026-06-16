@@ -2,13 +2,13 @@ import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import ArticleCard from '@/components/ArticleCard'
 import NewsTicker from '@/components/NewsTicker'
-import { api } from '@/lib/api'
+import { getPublicArticles } from '@/lib/api'
 import type { Article } from '@/types'
 
 async function getArticles() {
   try {
-    const r = await api.get('/articles?limit=20&page=1')
-    return r.data?.articles || r.data || []
+    const r = await getPublicArticles({ limit: 20, page: 1 })
+    return r?.articles || r?.data || (Array.isArray(r) ? r : [])
   } catch { return [] }
 }
 
@@ -25,7 +25,6 @@ export default async function Home() {
       <NewsTicker articles={articles.slice(0,8)}/>
       
       <div className="max-w-7xl mx-auto px-4 py-6">
-        {/* Featured */}
         {featured.length > 0 && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-8">
             <div className="lg:col-span-2">
@@ -38,7 +37,6 @@ export default async function Home() {
           </div>
         )}
 
-        {/* Rest */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {rest.map(a => <ArticleCard key={a._id} article={a}/>)}
         </div>
