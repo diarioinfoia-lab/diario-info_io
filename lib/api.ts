@@ -235,3 +235,29 @@ export async function getPlaylists() {
 
 // Aliases for backward compatibility
 export const login = signIn;
+
+// Additional exports for backward compatibility
+export async function getCategory(id: string) {
+  const res = await fetch(`${API_BASE}/categories/${id}`, { headers: authHeaders() });
+  return res.json();
+}
+
+export async function getPublicArticle(id: string) {
+  const res = await fetch(`${API_BASE}/articles/public/${id}`, { headers: authHeaders() });
+  return res.json();
+}
+
+export async function getArticle(id: string) {
+  const res = await fetch(`${API_BASE}/articles/${id}`, { headers: authHeaders() });
+  return res.json();
+}
+
+export async function searchArticles(params: { search?: string; limit?: number; page?: number; categoryId?: string }) {
+  const q = new URLSearchParams();
+  if (params.search) q.set('search', params.search);
+  if (params.limit !== undefined) q.set('limit', String(params.limit));
+  if (params.page !== undefined) q.set('page', String(params.page));
+  if (params.categoryId) q.set('categoryId', params.categoryId);
+  const res = await fetch(`${API_BASE}/articles/public?${q.toString()}`, { headers: authHeaders() });
+  return res.json();
+}
