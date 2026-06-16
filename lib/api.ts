@@ -49,9 +49,11 @@ export async function updatePassword(data: Record<string, unknown>) {
 }
 
 // Articles
-export async function getArticles(params?: Record<string, string>) {
-  const query = params ? '?' + new URLSearchParams(params).toString() : '';
-  const res = await fetch(`${API_BASE}/articles${query}`, { headers: authHeaders() });
+export async function getArticles(params?: Record<string, string | number | undefined>) {
+  const q = new URLSearchParams();
+  if (params) { Object.entries(params).forEach(([k, v]) => { if (v !== undefined) q.set(k, String(v)); }); }
+  const query = q.toString() ? '?' + q.toString() : '';
+  const res = await fetch(API_BASE + '/articles' + query, { headers: authHeaders() });
   return res.json();
 }
 
