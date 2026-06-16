@@ -1,9 +1,8 @@
 'use client'
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import Image from 'next/image'
-import { Search, Moon, Sun, User, Menu, X, Bell } from 'lucide-react'
-import { api } from '@/lib/api'
+import { Search, Moon, Sun, User, Menu, X } from 'lucide-react'
+import { getCategories } from '@/lib/api'
 import type { Category } from '@/types'
 
 export default function Header() {
@@ -16,7 +15,7 @@ export default function Header() {
   useEffect(() => {
     const saved = localStorage.getItem('theme')
     if (saved === 'dark') { setDark(true); document.documentElement.classList.add('dark') }
-    api.get('/categories').then(r => setCategories(r.data?.categories || r.data || [])).catch(() => {})
+    getCategories().then(r => setCategories(r?.categories || r?.data || (Array.isArray(r) ? r : []))).catch(() => {})
   }, [])
 
   const toggleDark = () => {
