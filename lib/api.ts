@@ -232,3 +232,6 @@ export async function getPlaylists() {
   const res = await fetch(`${API_BASE}/playlists`, { headers: authHeaders() });
   return res.json();
 }
+
+// Aliases for backward compatibility
+export const login = signIn;
