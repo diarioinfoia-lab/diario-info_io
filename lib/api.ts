@@ -42,14 +42,31 @@ export async function getCategory(id: string) {
 
 // === AUTH ===
 export async function login(email: string, password: string) {
-  return fetchAPI('/auth/login', {
+  // Ruta real: /signin (NO /auth/login)
+  return fetchAPI('/signin', {
     method: 'POST',
     body: JSON.stringify({ email, password }),
   });
 }
 
+export async function register(data: { email: string; password: string; name: string }) {
+  // Ruta real: /signup
+  return fetchAPI('/signup', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
 export async function getMe() {
-  return fetchAuthAPI('/auth/me');
+  // Ruta real: /me (NO /auth/me)
+  return fetchAuthAPI('/me');
+}
+
+export async function updateMe(data: object) {
+  return fetchAuthAPI('/me', {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
 }
 
 // === ARTÍCULOS (dashboard) ===
