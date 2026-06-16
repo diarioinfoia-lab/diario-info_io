@@ -1,15 +1,20 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { getUsers, createUser, updateUser, deleteUser } from '@/lib/api'
-import { Plus, Search, MoreHorizontal, Trash2, Edit, Users } from 'lucide-react'
+import { Plus, Search, MoreHorizontal, Trash2, Edit, Users, Crown, Eye, FileText, BookOpen } from 'lucide-react'
 
 const ROLES = ['Admin', 'Director', 'Editor', 'Reader']
-const ROLE_ICONS: Record<string, string> = { Admin: '👑', Director: '👁', Editor: '📋', Reader: '📖' }
 const ROLE_COLORS: Record<string, string> = {
   Admin: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
   Director: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
   Editor: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
   Reader: 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300',
+}
+const ROLE_ICONS: Record<string, any> = {
+  Admin: Crown,
+  Director: Eye,
+  Editor: FileText,
+  Reader: BookOpen,
 }
 
 export default function UsersPage() {
@@ -71,7 +76,6 @@ export default function UsersPage() {
           </select>
         </div>
 
-        {/* Header */}
         <div className="grid grid-cols-[1fr_160px_120px_80px] gap-4 px-6 py-3 bg-gray-50 dark:bg-gray-800/50 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-100 dark:border-gray-800">
           <span>Usuario</span><span>Rol</span><span>Estado</span><span>Acciones</span>
         </div>
@@ -83,54 +87,53 @@ export default function UsersPage() {
             <Users className="w-10 h-10 opacity-30"/>
             <p className="text-sm">No hay usuarios</p>
           </div>
-        ) : filtered.map(u => (
-          <div key={u._id} className="grid grid-cols-[1fr_160px_120px_80px] gap-4 px-6 py-4 border-b border-gray-50 dark:border-gray-800 hover:bg-gray-50/50 dark:hover:bg-gray-800/30 items-center">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-rose-400 to-purple-500 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
-                {u.name ? u.name.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase() : 'U'}
+        ) : filtered.map(u => {
+          const RoleIcon = ROLE_ICONS[u.role] || BookOpen
+          return (
+            <div key={u._id} className="grid grid-cols-[1fr_160px_120px_80px] gap-4 px-6 py-4 border-b border-gray-50 dark:border-gray-800 hover:bg-gray-50/50 dark:hover:bg-gray-800/30 items-center">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-rose-400 to-purple-500 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
+                  {u.name ? u.name.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase() : 'U'}
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">{u.name || 'Sin nombre'}</p>
+                  <p className="text-xs text-gray-500">{u.email}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <RoleIcon className="w-3.5 h-3.5 text-gray-500"/>
+                <span className={`text-xs px-2 py-1 rounded-full font-medium ${ROLE_COLORS[u.role] || ROLE_COLORS.Reader}`}>{u.role || 'Reader'}</span>
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-900 dark:text-white">{u.name || 'Sin nombre'}</p>
-                <p className="text-xs text-gray-500">{u.email}</p>
+                <span className={`text-xs px-2 py-1 rounded-full font-medium ${u.disabledAt ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'}`}>
+                  {u.disabledAt ? 'Inactivo' : 'Activo'}
+                </span>
+              </div>
+              <div className="relative">
+                <button onClick={() => setOpenMenu(openMenu === u._id ? null : u._id)}
+                  className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                  <MoreHorizontal className="w-4 h-4"/>
+                </button>
+                {openMenu === u._id && (
+                  <div className="absolute right-0 top-full mt-1 w-40 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700 z-10">
+                    <button onClick={() => { setEditing(u); setShowModal(true); setOpenMenu(null) }}
+                      className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
+                      <Edit className="w-3.5 h-3.5"/> Editar
+                    </button>
+                    <button onClick={() => { handleDelete(u._id); setOpenMenu(null) }}
+                      className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20">
+                      <Trash2 className="w-3.5 h-3.5"/> Eliminar
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm">{ROLE_ICONS[u.role] || '👤'}</span>
-              <span className={`text-xs px-2 py-1 rounded-full font-medium ${ROLE_COLORS[u.role] || ROLE_COLORS.Reader}`}>{u.role || 'Reader'}</span>
-            </div>
-            <div>
-              <span className={`text-xs px-2 py-1 rounded-full font-medium ${u.disabledAt ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'}`}>
-                {u.disabledAt ? 'Inactivo' : 'Activo'}
-              </span>
-            </div>
-            <div className="relative">
-              <button onClick={() => setOpenMenu(openMenu === u._id ? null : u._id)}
-                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                <MoreHorizontal className="w-4 h-4"/>
-              </button>
-              {openMenu === u._id && (
-                <div className="absolute right-0 top-full mt-1 w-40 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700 z-10">
-                  <button onClick={() => { setEditing(u); setShowModal(true); setOpenMenu(null) }}
-                    className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
-                    <Edit className="w-3.5 h-3.5"/> Editar
-                  </button>
-                  <button onClick={() => { handleDelete(u._id); setOpenMenu(null) }}
-                    className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20">
-                    <Trash2 className="w-3.5 h-3.5"/> Eliminar
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
 
       {showModal && (
-        <UserModal
-          user={editing}
-          onClose={() => setShowModal(false)}
-          onSave={() => { setShowModal(false); load() }}
-        />
+        <UserModal user={editing} onClose={() => setShowModal(false)} onSave={() => { setShowModal(false); load() }}/>
       )}
     </div>
   )
@@ -161,7 +164,7 @@ function UserModal({ user, onClose, onSave }: any) {
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
         </div>
         <div className="p-6 space-y-4">
-          {[['name', 'Nombre Completo', 'text'], ['email', 'Email', 'email'], ['password', user ? 'Nueva Contraseña (opcional)' : 'Contraseña', 'password']].map(([key, label, type]) => (
+          {([['name', 'Nombre Completo', 'text'], ['email', 'Email', 'email'], ['password', user ? 'Nueva Contraseña (opcional)' : 'Contraseña', 'password']] as [string, string, string][]).map(([key, label, type]) => (
             <div key={key}>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{label}</label>
               <input type={type} value={(form as any)[key]} onChange={e => setForm(f => ({...f, [key]: e.target.value}))}
@@ -172,7 +175,7 @@ function UserModal({ user, onClose, onSave }: any) {
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Rol</label>
             <select value={form.role} onChange={e => setForm(f => ({...f, role: e.target.value}))}
               className="w-full border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5 text-sm bg-white dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-rose-500">
-              {ROLES.map(r => <option key={r} value={r}>{ROLE_ICONS[r]} {r}</option>)}
+              {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
             </select>
           </div>
         </div>
