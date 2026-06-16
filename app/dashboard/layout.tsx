@@ -1,86 +1,170 @@
-'use client';
-import { useEffect, useState } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
-import Link from 'next/link';
+'use client'
+import { useState, useEffect } from 'react'
+import Link from 'next/link'
+import { usePathname, useRouter } from 'next/navigation'
+import {
+  Home, Newspaper, Tag, ListMusic, Layout, Users, Bell,
+  Settings, User, LogOut, ChevronLeft, ChevronRight,
+  Globe, Moon, Sun, FileText, Clock
+} from 'lucide-react'
 
-const NAV_ITEMS = [
-  { href: '/dashboard', label: 'Inicio', icon: '🏠', exact: true },
-  { href: '/dashboard/noticias', label: 'Noticias', icon: '📰' },
-  { href: '/dashboard/categorias', label: 'Categorias', icon: '🏷️' },
-  { href: '/dashboard/usuarios', label: 'Usuarios', icon: '👥' },
-  { href: '/dashboard/ajustes', label: 'Ajustes', icon: '⚙️' },
-];
-
-function NavItem({ href, label, icon, exact }: { href: string; label: string; icon: string; exact?: boolean }) {
-  const pathname = usePathname();
-  const active = exact ? pathname === href : pathname.startsWith(href);
-  return (
-    <Link href={href} className={'flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ' + (active ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700')}>
-      <span>{icon}</span>{label}
-    </Link>
-  );
-}
+const navItems = [
+  { href: '/dashboard', label: 'Inicio', icon: Home },
+  { href: '/dashboard/articles', label: 'Noticias', icon: Newspaper },
+  { href: '/dashboard/categories', label: 'Categorías', icon: Tag },
+  { href: '/dashboard/playlists', label: 'Playlists', icon: ListMusic },
+  { href: '/dashboard/blocks', label: 'Plantillas', icon: FileText },
+  { href: '/dashboard/layout', label: 'Portada', icon: Layout },
+  { href: '/dashboard/users', label: 'Usuarios', icon: Users },
+  { href: '/dashboard/logs', label: 'Logs del Sistema', icon: Clock },
+  { href: '/dashboard/notifications', label: 'Notificaciones', icon: Bell },
+  { href: '/dashboard/profile', label: 'Mi Perfil', icon: User },
+]
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const router = useRouter();
-  const [user, setUser] = useState<{ name?: string; role?: string } | null>(null);
-  const [open, setOpen] = useState(false);
+  const pathname = usePathname()
+  const router = useRouter()
+  const [collapsed, setCollapsed] = useState(false)
+  const [dark, setDark] = useState(false)
+  const [user, setUser] = useState<any>(null)
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) { router.push('/signin'); return; }
-    try {
-      const u = localStorage.getItem('user');
-      if (u) setUser(JSON.parse(u));
-    } catch {}
-  }, [router]);
+    const token = localStorage.getItem('token')
+    if (!token) { router.push('/signin'); return }
+    const u = localStorage.getItem('user')
+    if (u) try { setUser(JSON.parse(u)) } catch {}
+    const saved = localStorage.getItem('theme')
+    if (saved === 'dark') { setDark(true); document.documentElement.classList.add('dark') }
+  }, [])
 
-  function logout() {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    router.push('/signin');
+  const toggleDark = () => {
+    const next = !dark
+    setDark(next)
+    document.documentElement.classList.toggle('dark', next)
+    localStorage.setItem('theme', next ? 'dark' : 'light')
   }
 
-  return (
-    <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex">
-      {open && <div className="fixed inset-0 bg-black/50 z-20 lg:hidden" onClick={() => setOpen(false)} />}
+  const logout = () => {
+    localStorage.removeItem('token')
+    localStorage.removeItem('user')
+    router.push('/signin')
+  }
 
-      <aside className={'fixed inset-y-0 left-0 z-30 w-64 bg-white dark:bg-gray-800 shadow-lg flex flex-col transition-transform duration-200 lg:static lg:translate-x-0 ' + (open ? 'translate-x-0' : '-translate-x-full')}>
-        <div className="p-6 border-b dark:border-gray-700">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-sm">D</div>
-            <div>
-              <p className="font-bold text-gray-900 dark:text-white text-sm">diario info</p>
-              <p className="text-xs text-gray-500">Panel</p>
+  const initials = user?.name?.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0,2) || 'U'
+
+  return (
+    <div className="flex h-screen bg-gray-50 dark:bg-gray-950 overflow-hidden">
+      {/* Sidebar */}
+      <aside className={`${collapsed ? 'w-16' : 'w-60'} flex-shrink-0 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 flex flex-col transition-all duration-300 overflow-hidden`}>
+        {/* Logo */}
+        <div className="h-14 flex items-center px-4 border-b border-gray-200 dark:border-gray-800 shrink-0">
+          {!collapsed && (
+            <Link href="/dashboard" className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-rose-500 to-purple-600 flex items-center justify-center shrink-0">
+                <span className="text-white font-bold text-xs">D</span>
+              </div>
+              <div className="leading-tight">
+                <span className="font-bold text-gray-900 dark:text-white text-sm">diario info</span>
+                <p className="text-xs text-gray-400">Información Inteligente</p>
+              </div>
+            </Link>
+          )}
+          {collapsed && (
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-rose-500 to-purple-600 flex items-center justify-center mx-auto">
+              <span className="text-white font-bold text-xs">D</span>
             </div>
-          </Link>
+          )}
         </div>
-        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-          {NAV_ITEMS.map(item => <NavItem key={item.href} {...item} />)}
+
+        {/* Nav */}
+        <nav className="flex-1 py-3 overflow-y-auto overflow-x-hidden">
+          {navItems.map(({ href, label, icon: Icon }) => {
+            const active = href === '/dashboard' ? pathname === '/dashboard' : pathname.startsWith(href)
+            return (
+              <Link key={href} href={href}
+                className={`flex items-center gap-3 px-4 py-2.5 mx-2 rounded-xl text-sm font-medium transition-all ${active ? 'bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'}`}>
+                <Icon className="w-4 h-4 shrink-0"/>
+                {!collapsed && <span className="truncate">{label}</span>}
+              </Link>
+            )
+          })}
         </nav>
-        <div className="p-4 border-t dark:border-gray-700">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-sm">
-              {user?.name?.charAt(0)?.toUpperCase() || 'U'}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{user?.name || 'Usuario'}</p>
-              <p className="text-xs text-gray-500 truncate">{user?.role || ''}</p>
-            </div>
-          </div>
-          <button onClick={logout} className="w-full text-left text-sm text-red-600 hover:text-red-800 px-2 py-1 rounded hover:bg-red-50">Cerrar sesion</button>
+
+        {/* Bottom: Ajustes + collapse */}
+        <div className="border-t border-gray-200 dark:border-gray-800 py-3 shrink-0">
+          <Link href="/dashboard/settings"
+            className={`flex items-center gap-3 px-4 py-2.5 mx-2 rounded-xl text-sm font-medium transition-all ${pathname === '/dashboard/settings' ? 'bg-rose-50 dark:bg-rose-900/20 text-rose-600' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'}`}>
+            <Settings className="w-4 h-4 shrink-0"/>
+            {!collapsed && <span>Ajustes</span>}
+          </Link>
+          <button onClick={() => setCollapsed(!collapsed)}
+            className="flex items-center gap-3 px-4 py-2.5 mx-2 rounded-xl text-sm text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 w-[calc(100%-16px)] transition-all">
+            {collapsed ? <ChevronRight className="w-4 h-4 shrink-0"/> : <><ChevronLeft className="w-4 h-4 shrink-0"/><span>Colapsar</span></>}
+          </button>
         </div>
       </aside>
 
-      <div className="flex-1 flex flex-col min-w-0">
-        <header className="bg-white dark:bg-gray-800 shadow-sm px-4 py-3 flex items-center gap-4 lg:hidden">
-          <button onClick={() => setOpen(true)} className="text-gray-500">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
-          </button>
-          <span className="font-semibold text-gray-900 dark:text-white">Panel</span>
+      {/* Main */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        {/* Topbar */}
+        <header className="h-14 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between px-6 shrink-0">
+          <Link href="/" className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-rose-600 transition-colors">
+            <Globe className="w-4 h-4"/>
+            <span>Ir al Diario</span>
+          </Link>
+          <div className="flex items-center gap-3">
+            <button onClick={toggleDark} className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors" title={dark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}>
+              {dark ? <Sun className="w-5 h-5 text-yellow-400"/> : <Moon className="w-5 h-5 text-gray-500"/>}
+            </button>
+            <Link href="/dashboard/notifications" className="relative p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+              <Bell className="w-5 h-5 text-gray-500"/>
+            </Link>
+            <button onClick={logout} className="w-9 h-9 rounded-full bg-gradient-to-br from-rose-400 to-purple-500 flex items-center justify-center text-white font-bold text-sm hover:opacity-90 transition-opacity" title="Cerrar sesión">
+              {initials}
+            </button>
+          </div>
         </header>
-        <main className="flex-1 p-6 overflow-y-auto">{children}</main>
+
+        {/* Content */}
+        <main className="flex-1 overflow-y-auto p-6">
+          {children}
+        </main>
+
+        {/* Footer */}
+        <footer className="bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 px-6 py-6 shrink-0">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-rose-500 to-purple-600 flex items-center justify-center shrink-0">
+                  <span className="text-white font-bold text-xs">D</span>
+                </div>
+                <div><p className="font-bold text-gray-900 dark:text-white text-sm">diario info</p><p className="text-xs text-gray-400">PANEL DE CONTROL</p></div>
+              </div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Plataforma de gestión de contenidos y administración integral.</p>
+              <p className="text-xs text-gray-400 mt-1">© 2026 v2.4.0</p>
+            </div>
+            <div>
+              <p className="font-semibold text-gray-700 dark:text-gray-300 text-sm mb-2">Soporte Técnico</p>
+              <p className="text-xs text-gray-500">diarioinfo.io@gmail.com</p>
+              <p className="text-xs text-gray-500">+54 9 3854 10-3821</p>
+              <p className="text-xs text-gray-500">Documentación</p>
+            </div>
+            <div>
+              <p className="font-semibold text-gray-700 dark:text-gray-300 text-sm mb-2">Sistema</p>
+              <p className="text-xs text-green-600">Servidores: Operativos</p>
+              <p className="text-xs text-green-600">Seguridad: Activa</p>
+              <p className="text-xs text-gray-500">Log de Cambios</p>
+            </div>
+            <div>
+              <p className="font-semibold text-gray-700 dark:text-gray-300 text-sm mb-2">Enlaces Rápidos</p>
+              <Link href="/" className="block text-xs text-gray-500 hover:text-rose-600">Ir al Sitio Web</Link>
+              <p className="text-xs text-gray-500">Contacto</p>
+              <p className="text-xs text-gray-500">Términos de Uso</p>
+              <p className="text-xs text-gray-500">Política de Privacidad</p>
+            </div>
+          </div>
+        </footer>
       </div>
     </div>
-  );
+  )
 }
