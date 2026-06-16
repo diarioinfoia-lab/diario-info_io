@@ -1,18 +1,18 @@
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import ArticleCard from '@/components/ArticleCard'
-import { api } from '@/lib/api'
-import type { Article, Category } from '@/types'
+import { getCategory, getPublicArticles } from '@/lib/api'
+import type { Article } from '@/types'
 
 async function getData(id: string) {
   try {
     const [catRes, artRes] = await Promise.all([
-      api.get(`/categories/${id}`).catch(() => null),
-      api.get(`/articles?category=${id}&limit=20`).catch(() => null),
+      getCategory(id).catch(() => null),
+      getPublicArticles({ categoryId: id, limit: 20 }).catch(() => null),
     ])
     return {
-      category: catRes?.data?.category || catRes?.data,
-      articles: artRes?.data?.articles || artRes?.data || [],
+      category: catRes?.category || catRes?.data || catRes,
+      articles: artRes?.articles || artRes?.data || (Array.isArray(artRes) ? artRes : []),
     }
   } catch { return { category: null, articles: [] } }
 }
