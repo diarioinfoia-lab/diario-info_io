@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { GripVertical, Pencil, Trash2, X, Search, Plus, AlignLeft, Columns2, LayoutGrid, BookOpen, MonitorPlay, Megaphone, FileText } from 'lucide-react';
+import { GripVertical, Pencil, Trash2, X, Search, Plus, AlignLeft, Columns2, LayoutGrid, BookOpen, MonitorPlay, Megaphone, FileText, Save } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 const API = 'https://api2.diarioinfo.com';
@@ -18,19 +18,17 @@ function getHeaders() {
   };
 }
 
+// Destinos: coinciden exactamente con el formulario de Noticias
 const DESTINATIONS = [
   { value: 'general', label: 'General' },
+  { value: 'analisis', label: 'Analisis' },
   { value: 'especial', label: 'Especial' },
-  { value: 'tuayyu', label: 'TuAyllú' },
-  { value: 'analisis', label: 'Análisis' },
-  { value: 'mundial2026', label: 'Mundial 2026' },
-  { value: 'politica', label: 'Política' },
-  { value: 'deportes', label: 'Deportes' },
-  { value: 'economia', label: 'Economía' },
-  { value: 'cultura', label: 'Cultura' },
-  { value: 'tecnologia', label: 'Tecnología' },
-  { value: 'internacional', label: 'Internacional' },
-  { value: 'sociedad', label: 'Sociedad' },
+  { value: 'ultimomomento', label: 'Ultimo Momento' },
+  { value: 'tuayllu', label: 'TuAyllu' },
+  { value: 'mundial2026', label: 'Argentina en el Mundial 2026' },
+  { value: 'charlycarabajal', label: 'La Columna de Charly Carabajal' },
+  { value: 'juanmanuelmartinez', label: 'La Columna de Juan Manuel Martinez' },
+  { value: 'hockey', label: 'Federacion Santiaguena de Hockey' },
 ];
 
 interface Column { type: string; }
@@ -156,7 +154,7 @@ function ContentModal({ block, onClose, onSave }: ContentModalProps) {
           <div>
             <h2 className="text-xl font-bold text-gray-900">Editor de Contenido de Instancia</h2>
             <p className="text-sm text-gray-500 mt-1">
-              Asigna el contenido específico para "{block.name}" en la portada.
+              Asigna el contenido especifico para "{block.name}" en la portada.
             </p>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg ml-4 flex-shrink-0">
@@ -176,13 +174,13 @@ function ContentModal({ block, onClose, onSave }: ContentModalProps) {
               ))}
             </select>
             <p className="text-xs text-gray-400 mt-1">
-              Define de qué sección del diario se alimentará este bloque.
+              Define de que seccion del diario se alimentara este bloque.
             </p>
           </div>
           {cols.length > 0 && (
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-3">
-                Previsualización y Asignación de Contenido
+                Previsualizacion y Asignacion de Contenido
               </label>
               <div className="border border-gray-200 rounded-xl p-4 bg-gray-50">
                 <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${Math.min(cols.length, 3)}, 1fr)` }}>
@@ -195,7 +193,7 @@ function ContentModal({ block, onClose, onSave }: ContentModalProps) {
                         {getColTypeIcon(col.type)}
                         <span className="text-xs font-medium text-gray-700 text-center">Contenido de {col.type}</span>
                         <span className="text-[10px] text-blue-500 text-center">
-                          Desde Destino: "{getDestLabel(destination)}" ℹ️
+                          Desde Destino: "{getDestLabel(destination)}"
                         </span>
                       </div>
                     </div>
@@ -229,12 +227,14 @@ export default function LayoutPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [contentModal, setContentModal] = useState<Block | null>(null);
-  
+  const [saving, setSaving] = useState(false);
+  const [hasPendingChanges, setHasPendingChanges] = useState(false);
+
   // Drag state for block reorder (right panel)
   const dragBlockIdx = useRef<number | null>(null);
   const dragOverBlockIdx = useRef<number | null>(null);
-  
-  // Drag state for template-to-layout (left panel → right panel)
+
+  // Drag state for template-to-layout (left panel to right panel)
   const dragTemplateId = useRef<string | null>(null);
   const [dropTargetIdx, setDropTargetIdx] = useState<number | null>(null);
   const [isDraggingTemplate, setIsDraggingTemplate] = useState(false);
@@ -260,29 +260,37 @@ export default function LayoutPage() {
 
   useEffect(() => { fetchAll(); }, []);
 
-  // Add template at a specific position (default: end)
-  const addTemplateAtPosition = async (tmpl: BlockTemplate, insertAfterIdx?: number) => {
-    const insertAt = insertAfterIdx !== undefined ? insertAfterIdx + 1 : blocks.length;
-    // Shift orders for blocks after insertion point
-    const newOrder = insertAt + 1;
+  // Add template at a specific insert position (insertAtIdx = index to insert BEFORE)
+  const addTemplateAtPosition = async (tmpl: BlockTemplate, insertAtIdx?: number) => {
+    const posIdx = insertAtIdx !== undefined ? insertAtIdx : blocks.length;
+    // We assign order = posIdx + 1, and shift all blocks at that position upward
+    // First, shift existing blocks to make room
+    const blocksToShift = blocks.slice(posIdx);
+    for (let i = 0; i < blocksToShift.length; i++) {
+      await fetch(API + '/block/' + getId(blocksToShift[i]), {
+        method: 'PUT',
+        headers: getHeaders(),
+        body: JSON.stringify({ order: posIdx + i + 2 }),
+      });
+    }
     const body = {
       name: tmpl.name,
       template: getId(tmpl),
-      order: newOrder,
+      order: posIdx + 1,
       isVisible: true,
       config: { destination: 'general' },
       content: [],
     };
     await fetch(API + '/blocks', { method: 'POST', headers: getHeaders(), body: JSON.stringify(body) });
-    // Reorder the blocks after insertion to keep order consistent
     await fetchAll();
-    // Re-sort and fix orders if needed
+    setHasPendingChanges(true);
   };
 
   const deleteBlock = async (block: Block) => {
-    if (!confirm('¿Eliminar este bloque de la portada?')) return;
+    if (!confirm('Eliminar este bloque de la portada?')) return;
     await fetch(API + '/block/' + getId(block), { method: 'DELETE', headers: getHeaders() });
     fetchAll();
+    setHasPendingChanges(true);
   };
 
   const handleSaveContent = async (block: Block, destination: string) => {
@@ -292,6 +300,7 @@ export default function LayoutPage() {
       body: JSON.stringify({ config: { destination } }),
     });
     fetchAll();
+    setHasPendingChanges(true);
   };
 
   const handleDestinationChange = async (block: Block, destination: string) => {
@@ -301,6 +310,23 @@ export default function LayoutPage() {
       body: JSON.stringify({ config: { destination } }),
     });
     fetchAll();
+    setHasPendingChanges(true);
+  };
+
+  // Save all changes to live portada
+  const handleSaveAll = async () => {
+    setSaving(true);
+    // Re-save all block orders to ensure consistency
+    for (let i = 0; i < blocks.length; i++) {
+      await fetch(API + '/block/' + getId(blocks[i]), {
+        method: 'PUT',
+        headers: getHeaders(),
+        body: JSON.stringify({ order: i + 1 }),
+      });
+    }
+    setSaving(false);
+    setHasPendingChanges(false);
+    alert('Cambios guardados en la portada del diario.');
   };
 
   // ---- Block reorder drag (right panel) ----
@@ -323,6 +349,7 @@ export default function LayoutPage() {
     newBlocks.splice(dragOverBlockIdx.current, 0, removed);
     dragBlockIdx.current = null; dragOverBlockIdx.current = null;
     setBlocks(newBlocks);
+    setHasPendingChanges(true);
     for (let i = 0; i < newBlocks.length; i++) {
       await fetch(API + '/block/' + getId(newBlocks[i]), {
         method: 'PUT', headers: getHeaders(),
@@ -331,7 +358,7 @@ export default function LayoutPage() {
     }
   };
 
-  // ---- Template drag to preview (left panel → right panel) ----
+  // ---- Template drag to preview (left panel to right panel) ----
   const handleTemplateDragStart = (tmpl: BlockTemplate) => {
     dragTemplateId.current = getId(tmpl);
     setIsDraggingTemplate(true);
@@ -341,36 +368,41 @@ export default function LayoutPage() {
     setIsDraggingTemplate(false);
     setDropTargetIdx(null);
   };
-  
+
   // Drop zone: before each block and after the last
   const handleDropZoneDragOver = (e: React.DragEvent, idx: number) => {
     if (!isDraggingTemplate) return;
     e.preventDefault();
+    e.stopPropagation();
     setDropTargetIdx(idx);
   };
-  const handleDropZoneDrop = async (e: React.DragEvent, insertBeforeIdx: number) => {
+
+  const handleDropZoneDrop = async (e: React.DragEvent, insertAtIdx: number) => {
     e.preventDefault();
+    e.stopPropagation(); // Prevent bubbling to parent onDrop (avoid duplicates)
     if (!isDraggingTemplate || !dragTemplateId.current) return;
     const tmpl = templates.find(t => getId(t) === dragTemplateId.current);
     if (!tmpl) return;
     setDropTargetIdx(null);
     setIsDraggingTemplate(false);
-    
-    // Insert before insertBeforeIdx → after (insertBeforeIdx - 1)
-    const insertAfterIdx = insertBeforeIdx - 1;
-    await addTemplateAtPosition(tmpl, insertAfterIdx >= 0 ? insertAfterIdx : undefined);
+    dragTemplateId.current = null;
+    await addTemplateAtPosition(tmpl, insertAtIdx);
   };
+
   const handlePreviewDragOver = (e: React.DragEvent) => {
     if (!isDraggingTemplate) return;
     e.preventDefault();
   };
+
   const handlePreviewDrop = async (e: React.DragEvent) => {
+    // Only handle if no drop zone handled it (e.g. empty portada)
     e.preventDefault();
     if (!isDraggingTemplate || !dragTemplateId.current) return;
     const tmpl = templates.find(t => getId(t) === dragTemplateId.current);
     if (!tmpl) return;
     setDropTargetIdx(null);
     setIsDraggingTemplate(false);
+    dragTemplateId.current = null;
     await addTemplateAtPosition(tmpl);
   };
 
@@ -390,12 +422,30 @@ export default function LayoutPage() {
     <div className="min-h-screen bg-gray-50 pb-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Editor de Portada</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Arrastra, suelta y organiza las instancias de bloques para construir la página principal.
-          </p>
+        <div className="mb-6 flex items-start justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Editor de Portada</h1>
+            <p className="text-sm text-gray-500 mt-1">
+              Arrastra, suelta y organiza las instancias de bloques para construir la pagina principal.
+            </p>
+          </div>
+          {hasPendingChanges && (
+            <button
+              onClick={handleSaveAll}
+              disabled={saving}
+              className="flex items-center gap-2 px-5 py-2.5 bg-gray-900 text-white text-sm font-medium rounded-xl hover:bg-gray-800 transition-colors disabled:opacity-60"
+            >
+              <Save className="w-4 h-4" />
+              {saving ? 'Guardando...' : 'Publicar Portada'}
+            </button>
+          )}
         </div>
+
+        {hasPendingChanges && (
+          <div className="mb-4 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-700 flex items-center gap-2">
+            <span className="font-semibold">Cambios pendientes:</span> Los cambios realizados solo se publicaran en el diario cuando hagas clic en "Publicar Portada". La portada en vivo no se ha modificado aun.
+          </div>
+        )}
 
         <div className="flex gap-6 items-start">
           {/* ---- Left panel: Templates ---- */}
@@ -452,9 +502,9 @@ export default function LayoutPage() {
           <div className="flex-1">
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
               <div className="p-5 border-b border-gray-100">
-                <h2 className="text-base font-bold text-gray-900">Previsualización de la Portada</h2>
+                <h2 className="text-base font-bold text-gray-900">Previsualizacion de la Portada</h2>
                 {isDraggingTemplate && (
-                  <p className="text-xs text-blue-500 mt-1">Suelta la plantilla en la posición deseada</p>
+                  <p className="text-xs text-blue-500 mt-1">Suelta la plantilla en la posicion deseada</p>
                 )}
               </div>
               <div className="p-5">
@@ -467,11 +517,11 @@ export default function LayoutPage() {
                     <div
                       className={`flex flex-col items-center justify-center py-16 text-gray-400 rounded-xl transition-colors ${isDraggingTemplate ? 'bg-blue-50 border-2 border-dashed border-blue-300' : ''}`}
                       onDragOver={e => { if (isDraggingTemplate) e.preventDefault(); }}
-                      onDrop={handlePreviewDrop}
+                      onDrop={e => { e.stopPropagation(); handlePreviewDrop(e); }}
                     >
                       <FileText className="w-12 h-12 mb-3 text-gray-300" />
                       <p className="font-medium text-gray-500">
-                        {isDraggingTemplate ? 'Suelta aquí para agregar' : 'No hay bloques en la portada'}
+                        {isDraggingTemplate ? 'Suelta aqui para agregar' : 'No hay bloques en la portada'}
                       </p>
                       <p className="text-sm">
                         {isDraggingTemplate ? '' : 'Haz clic o arrastra una plantilla para agregarla'}
@@ -481,12 +531,12 @@ export default function LayoutPage() {
                     <div className="space-y-1">
                       {/* Drop zone BEFORE first block */}
                       <div
-                        className={`h-2 rounded-lg transition-all duration-150 ${dropTargetIdx === 0 && isDraggingTemplate ? 'h-10 bg-blue-100 border-2 border-dashed border-blue-400 flex items-center justify-center' : ''}`}
+                        className={`rounded-lg transition-all duration-150 ${dropTargetIdx === 0 && isDraggingTemplate ? 'h-10 bg-blue-100 border-2 border-dashed border-blue-400 flex items-center justify-center' : 'h-2'}`}
                         onDragOver={e => handleDropZoneDragOver(e, 0)}
                         onDrop={e => handleDropZoneDrop(e, 0)}
                       >
                         {dropTargetIdx === 0 && isDraggingTemplate && (
-                          <span className="text-xs text-blue-500 font-medium">Insertar aquí</span>
+                          <span className="text-xs text-blue-500 font-medium">Insertar aqui</span>
                         )}
                       </div>
 
@@ -542,12 +592,12 @@ export default function LayoutPage() {
 
                             {/* Drop zone AFTER this block */}
                             <div
-                              className={`h-2 rounded-lg transition-all duration-150 mt-1 ${dropTargetIdx === idx + 1 && isDraggingTemplate ? 'h-10 bg-blue-100 border-2 border-dashed border-blue-400 flex items-center justify-center' : ''}`}
+                              className={`rounded-lg transition-all duration-150 mt-1 ${dropTargetIdx === idx + 1 && isDraggingTemplate ? 'h-10 bg-blue-100 border-2 border-dashed border-blue-400 flex items-center justify-center' : 'h-2'}`}
                               onDragOver={e => handleDropZoneDragOver(e, idx + 1)}
                               onDrop={e => handleDropZoneDrop(e, idx + 1)}
                             >
                               {dropTargetIdx === idx + 1 && isDraggingTemplate && (
-                                <span className="text-xs text-blue-500 font-medium">Insertar aquí</span>
+                                <span className="text-xs text-blue-500 font-medium">Insertar aqui</span>
                               )}
                             </div>
                           </div>
