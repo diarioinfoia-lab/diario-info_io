@@ -50,27 +50,65 @@ const DESTINATIONS = [
 
 const MONTHS = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
 
-
-function RichTextEditor({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+function RichTextEditor({
+  value,
+  onChange,
+  onOpenMediaPicker,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  onOpenMediaPicker: (callback: (url: string) => void) => void;
+}) {
   const editorRef = useRef<HTMLDivElement>(null);
+  const savedRangeRef = useRef<Range | null>(null);
+
   useEffect(() => {
     if (editorRef.current && editorRef.current.innerHTML !== value) {
       editorRef.current.innerHTML = value || '';
     }
   }, []);
+
   const execCmd = (cmd: string, val?: string) => {
     document.execCommand(cmd, false, val);
     editorRef.current?.focus();
     onChange(editorRef.current?.innerHTML || '');
   };
+
+  const saveRange = () => {
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0) {
+      savedRangeRef.current = sel.getRangeAt(0).cloneRange();
+    }
+  };
+
+  const restoreRange = () => {
+    const sel = window.getSelection();
+    if (sel && savedRangeRef.current) {
+      sel.removeAllRanges();
+      sel.addRange(savedRangeRef.current);
+    }
+  };
+
   const insertLink = () => {
     const url = prompt('URL del enlace:');
     if (url) execCmd('createLink', url);
   };
+
   const insertImage = () => {
-    const url = prompt('URL de la imagen:');
-    if (url) execCmd('insertImage', url);
+    saveRange();
+    editorRef.current?.blur();
+    onOpenMediaPicker((url: string) => {
+      if (url) {
+        if (editorRef.current) {
+          editorRef.current.focus();
+          restoreRange();
+          document.execCommand('insertHTML', false, `<img src="${url}" style="max-width:100%;height:auto;display:block;margin:8px 0;" />`);
+          onChange(editorRef.current.innerHTML || '');
+        }
+      }
+    });
   };
+
   const insertVideo = () => {
     const url = prompt('URL del video (Youtube embed):');
     if (url) {
@@ -80,6 +118,7 @@ function RichTextEditor({ value, onChange }: { value: string; onChange: (v: stri
       onChange(editorRef.current?.innerHTML || '');
     }
   };
+
   return (
     <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
       <div className="flex items-center gap-1 px-2 py-2 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex-wrap">
@@ -91,7 +130,7 @@ function RichTextEditor({ value, onChange }: { value: string; onChange: (v: stri
         <button type="button" onClick={() => execCmd('insertOrderedList')} className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"><ListOrdered size={15} /></button>
         <div className="w-px h-5 bg-gray-300 dark:bg-gray-600 mx-1" />
         <button type="button" onClick={insertLink} className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"><Link2 size={15} /></button>
-        <button type="button" onClick={insertImage} className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"><Image size={15} /></button>
+        <button type="button" onClick={insertImage} className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300" title="Insertar imagen"><Image size={15} /></button>
         <button type="button" onClick={insertVideo} className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"><Video size={15} /></button>
       </div>
       <div
@@ -105,8 +144,6 @@ function RichTextEditor({ value, onChange }: { value: string; onChange: (v: stri
     </div>
   );
 }
-
-
 function MediaPickerModal({
   onSelect,
   onClose,
@@ -167,7 +204,6 @@ function MediaPickerModal({
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4">
       <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-3xl max-h-[85vh] flex flex-col">
-        {/* Header */}
         <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
           <div>
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Seleccionar Archivo</h2>
@@ -175,8 +211,6 @@ function MediaPickerModal({
           </div>
           <button onClick={onClose} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400"><X size={18} /></button>
         </div>
-
-        {/* Actions */}
         <div className="px-6 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center gap-3">
           <label className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg text-sm text-gray-700 dark:text-gray-300 cursor-pointer font-medium transition-colors">
             <Upload size={15} />
@@ -198,8 +232,6 @@ function MediaPickerModal({
             <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
           </button>
         </div>
-
-        {/* Files grid */}
         <div className="overflow-y-auto flex-1 p-4">
           {loading ? (
             <div className="flex items-center justify-center py-16">
@@ -237,8 +269,6 @@ function MediaPickerModal({
     </div>
   );
 }
-
-
 export default function ArticlesPage() {
   const [articles, setArticles] = useState<Article[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -250,7 +280,9 @@ export default function ArticlesPage() {
   const [showCategoryMenu, setShowCategoryMenu] = useState(false);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
+  // Media picker state: used for both featured image AND body image insertion
   const [showMediaPicker, setShowMediaPicker] = useState(false);
+  const [mediaPickerCallback, setMediaPickerCallback] = useState<((url: string) => void) | null>(null);
   const [editTarget, setEditTarget] = useState<Article | null>(null);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
@@ -293,6 +325,20 @@ export default function ArticlesPage() {
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  // Opens media picker: used for featured image (direct setter) OR for body insertion (callback)
+  const openMediaPickerFor = (cb: (url: string) => void) => {
+    setMediaPickerCallback(() => cb);
+    setShowMediaPicker(true);
+  };
+
+  const handleMediaSelect = (url: string) => {
+    if (mediaPickerCallback) {
+      mediaPickerCallback(url);
+    }
+    setShowMediaPicker(false);
+    setMediaPickerCallback(null);
+  };
 
   const openCreate = () => {
     setEditTarget(null);
@@ -401,8 +447,6 @@ export default function ArticlesPage() {
     const matchCat = !filterCategory || (typeof a.category === 'object' ? a.category?.id === filterCategory : a.category === filterCategory);
     return matchSearch && matchStatus && matchCat;
   });
-
-
   return (
     <div className="p-6 max-w-6xl mx-auto">
       {toast && (
@@ -449,7 +493,7 @@ export default function ArticlesPage() {
         <div className="relative">
           <button onClick={() => { setShowCategoryMenu(!showCategoryMenu); setShowStatusMenu(false); }} className="flex items-center gap-2 px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="11" y1="18" x2="13" y2="18"/></svg>
-            Categorias {filterCategory && <span className="text-blue-500">•</span>}
+            Categorias {filterCategory && <span className="text-blue-500">&#8226;</span>}
           </button>
           {showCategoryMenu && (
             <div className="absolute right-0 top-10 z-20 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-1 min-w-[160px]">
@@ -511,13 +555,11 @@ export default function ArticlesPage() {
       {(showStatusMenu || showCategoryMenu || openMenu) && (
         <div className="fixed inset-0 z-10" onClick={() => { setShowStatusMenu(false); setShowCategoryMenu(false); setOpenMenu(null); }} />
       )}
-
-
-      {/* Media Picker Modal */}
+      {/* Media Picker Modal - shared for featured image and body image insertion */}
       {showMediaPicker && (
         <MediaPickerModal
-          onSelect={(url) => setFFeaturedImage(url)}
-          onClose={() => setShowMediaPicker(false)}
+          onSelect={handleMediaSelect}
+          onClose={() => { setShowMediaPicker(false); setMediaPickerCallback(null); }}
         />
       )}
 
@@ -555,7 +597,7 @@ export default function ArticlesPage() {
                   <textarea value={fDesc} onChange={e => setFDesc(e.target.value)} placeholder="Un resumen atractivo para listados y SEO" rows={2} className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:border-blue-400 resize-none" />
                 </div>
 
-                {/* Featured Image - igual al original */}
+                {/* Featured Image */}
                 <div>
                   <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Imagen Principal <span className="text-red-400">*</span></label>
                   {fFeaturedImage ? (
@@ -563,7 +605,7 @@ export default function ArticlesPage() {
                       className="relative rounded-xl overflow-hidden cursor-pointer border border-gray-200 dark:border-gray-700"
                       onMouseEnter={() => setHoveringImage(true)}
                       onMouseLeave={() => setHoveringImage(false)}
-                      onClick={() => setShowMediaPicker(true)}
+                      onClick={() => openMediaPickerFor((url) => setFFeaturedImage(url))}
                     >
                       <img src={fFeaturedImage} alt="featured" className="w-full h-52 object-cover" />
                       {hoveringImage && (
@@ -584,7 +626,7 @@ export default function ArticlesPage() {
                       </div>
                       <button
                         type="button"
-                        onClick={() => setShowMediaPicker(true)}
+                        onClick={() => openMediaPickerFor((url) => setFFeaturedImage(url))}
                         className="px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-white dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400 transition-colors bg-white/70 dark:bg-gray-900/50"
                       >
                         Seleccionar Manualmente
@@ -597,7 +639,11 @@ export default function ArticlesPage() {
               {/* Section 2: Cuerpo */}
               <div className="space-y-2">
                 <h3 className="font-semibold text-gray-800 dark:text-gray-200 text-sm">Cuerpo de la Noticia</h3>
-                <RichTextEditor value={fContent} onChange={setFContent} />
+                <RichTextEditor
+                  value={fContent}
+                  onChange={setFContent}
+                  onOpenMediaPicker={openMediaPickerFor}
+                />
               </div>
 
               {/* Section 3: Detalles */}
