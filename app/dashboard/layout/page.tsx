@@ -1,392 +1,383 @@
-'use client'
-import React, { useState, useEffect } from 'react'
-import { Plus, Pencil, Trash2, Search, GripVertical, LayoutTemplate, PanelLeft, PanelRight, Columns2, Columns3, Columns4, Maximize2, Save, ChevronDown } from 'lucide-react'
-import { getBlockTemplates, getBlocks, createBlock, updateBlock, deleteBlock } from '@/lib/api'
+'use client';
+import { useState, useEffect, useRef } from 'react';
+import { Search, GripVertical, Edit2, Trash2, X, Plus, Save, AlignLeft, LayoutGrid, LayoutTemplate, Columns, ChevronDown, Eye, EyeOff } from 'lucide-react';
+
+const API = 'https://api2.diarioinfo.com';
 
 const DESTINATIONS = [
-  { value: 'general', label: 'General' },
-  { value: 'deportes', label: 'Deportes' },
-  { value: 'politica', label: 'Política' },
-  { value: 'economia', label: 'Economía' },
-]
+  'General', 'Analisis', 'Especial', 'Ultimo Momento', 'TuAyllu',
+  'Argentina en el Mundial 2026', 'La Columna de Charly Carabajal',
+  'La Columna de Juan Manuel Martinez', 'Federacion Santiaguena de Hockey'
+];
 
-interface Column { type: string }
-interface Template {
-  id: string
-  name: string
-  code: string
-  layout: string
-  columns: Column[]
-}
-interface Block {
-  id: string
-  name: string
-  template: Template
-  order: number
-  isVisible: boolean
-  destination: string
-}
-interface BlockRaw {
-  id?: string
-  _id?: string
-  name: string
-  template: Template
-  order: number
-  isVisible: boolean
-  destination: string
+interface BlockTemplate {
+  id: string;
+  name: string;
+  code: string;
+  layout: string;
+  columns: { type: string }[];
 }
 
-function layoutIcon(layout: string, size = 'w-4 h-4') {
-  if (layout === 'Full-width') return <Maximize2 className={`${size} text-gray-500`} />
-  if (layout === '2 Cols') return <Columns2 className={`${size} text-gray-500`} />
-  if (layout === '3 Cols') return <Columns3 className={`${size} text-gray-500`} />
-  if (layout === '4 Cols') return <Columns4 className={`${size} text-gray-500`} />
-  if (layout === 'Hero (Principal Izquierda)') return <PanelLeft className={`${size} text-gray-500`} />
-  if (layout === 'Hero (Principal Derecha)') return <PanelRight className={`${size} text-gray-500`} />
-  return <LayoutTemplate className={`${size} text-gray-500`} />
+interface LayoutBlock {
+  id: string;
+  name: string;
+  template: BlockTemplate | null;
+  order: number;
+  isVisible: boolean;
+  content: { destination?: string; articles?: string[] }[];
 }
 
-function typeColor(t: string) {
-  if (t === 'Noticia') return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
-  if (t === 'Multimedia') return 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300'
-  if (t === 'Publicidad') return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300'
-  return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+function layoutIcon(layout?: string) {
+  if (!layout) return <LayoutGrid size={16} className="text-gray-400" />;
+  if (layout.includes('Full')) return <AlignLeft size={16} className="text-rose-500" />;
+  if (layout.includes('Hero')) return <LayoutTemplate size={16} className="text-purple-500" />;
+  if (layout.includes('2')) return <Columns size={16} className="text-blue-500" />;
+  if (layout.includes('3')) return <LayoutGrid size={16} className="text-green-500" />;
+  return <LayoutGrid size={16} className="text-yellow-500" />;
 }
 
-function BlockPreview({ template }: { template: Template }) {
-  if (!template || !template.columns) return null
-  const { layout, columns } = template
-  const isHeroLeft = layout === 'Hero (Principal Izquierda)'
-  const isHeroRight = layout === 'Hero (Principal Derecha)'
-  const isFull = layout === 'Full-width'
-
-  if (isFull) {
-    return (
-      <div className="w-full rounded border border-gray-200 dark:border-gray-600 overflow-hidden h-16">
-        <div className={`w-full h-full flex items-center justify-center text-sm font-medium ${typeColor(columns[0]?.type || 'Noticia')}`}>
-          {columns[0]?.type || 'Noticia'}
-        </div>
-      </div>
-    )
-  }
-  if (isHeroLeft) {
-    return (
-      <div className="w-full flex gap-1 overflow-hidden h-16">
-        <div className={`flex-1 flex items-center justify-center text-xs font-medium ${typeColor(columns[0]?.type || 'Noticia')}`}>{columns[0]?.type}</div>
-        <div className="flex flex-col gap-0.5 w-2/5">
-          {[1,2].map(i => (
-            <div key={i} className={`flex-1 flex items-center justify-center text-xs ${typeColor(columns[i]?.type || 'Noticia')}`}>{columns[i]?.type}</div>
-          ))}
-        </div>
-      </div>
-    )
-  }
-  if (isHeroRight) {
-    return (
-      <div className="w-full flex gap-1 overflow-hidden h-16">
-        <div className="flex flex-col gap-0.5 w-2/5">
-          {[0,1].map(i => (
-            <div key={i} className={`flex-1 flex items-center justify-center text-xs ${typeColor(columns[i]?.type || 'Noticia')}`}>{columns[i]?.type}</div>
-          ))}
-        </div>
-        <div className={`flex-1 flex items-center justify-center text-xs font-medium ${typeColor(columns[2]?.type || 'Noticia')}`}>{columns[2]?.type}</div>
-      </div>
-    )
-  }
-  return (
-    <div className="w-full flex gap-1 overflow-hidden h-16">
-      {columns.map((col, i) => (
-        <div key={i} className={`flex-1 flex items-center justify-center text-xs font-medium ${typeColor(col.type)}`}>
-          {col.type}
-        </div>
-      ))}
-    </div>
-  )
-}
-
-function NewBlockModal({ templateName, onConfirm, onCancel, saving }: {
-  templateName: string
-  onConfirm: (name: string, destination: string) => void
-  onCancel: () => void
-  saving: boolean
+function ContentModal({
+  block,
+  onClose,
+  onSaved,
+}: {
+  block: LayoutBlock;
+  onClose: () => void;
+  onSaved: (destination: string) => void;
 }) {
-  const [name, setName] = useState(templateName)
-  const [destination, setDestination] = useState('general')
+  const [destination, setDestination] = useState(block.content?.[0]?.destination || 'General');
+  const [saving, setSaving] = useState(false);
+  const cols = block.template?.columns || [];
+  const layout = block.template?.layout || 'Full-width';
+
+  const getColLabel = (idx: number) => {
+    const labels: Record<string, string[]> = {
+      'Hero (Principal Izquierda)': ['PRINCIPAL (2/3)', 'SECUNDARIO 1', 'SECUNDARIO 2'],
+      'Hero (Principal Derecha)': ['SECUNDARIO 1', 'PRINCIPAL (2/3)', 'SECUNDARIO 2'],
+    };
+    return (labels[layout] || [])[idx] || ('COLUMNA ' + (idx + 1));
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : '';
+      await fetch(`${API}/block/${block.id}`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: [{ destination }] })
+      });
+      onSaved(destination);
+      onClose();
+    } finally { setSaving(false); }
+  };
+
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-sm shadow-2xl p-6">
-        <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Agregar a Portada</h2>
-        <div className="space-y-3">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4">
+      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-2xl">
+        <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nombre del bloque</label>
-            <input
-              className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              value={name}
-              onChange={e => setName(e.target.value)}
-            />
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Editor de Contenido de Instancia</h2>
+            <p className="text-xs text-gray-500 mt-0.5">Asigna el contenido especifico para "{block.template?.name || block.name}" en la portada.</p>
+          </div>
+          <button onClick={onClose} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400"><X size={18} /></button>
+        </div>
+        <div className="px-6 py-5 space-y-5">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Destino del Contenido</label>
+            <select value={destination} onChange={e => setDestination(e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:border-blue-400">
+              {DESTINATIONS.map(d => <option key={d} value={d}>{d}</option>)}
+            </select>
+            <p className="text-xs text-gray-400 mt-1">Define de que seccion del diario se alimentara este bloque.</p>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Destino</label>
-            <select
-              className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              value={destination}
-              onChange={e => setDestination(e.target.value)}
-            >
-              {DESTINATIONS.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
-            </select>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Previsualizacion y Asignacion de Contenido</label>
+            <div className="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
+              <div className={`grid gap-3 p-4 bg-gray-50 dark:bg-gray-800/50`} style={{gridTemplateColumns: cols.length <= 1 ? '1fr' : (layout.includes('Hero') ? '2fr 1fr' : `repeat(${cols.length}, 1fr)`)}}>
+                {cols.map((col, i) => (
+                  <div key={i} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 flex flex-col items-center justify-center min-h-[100px]">
+                    <p className="text-xs font-bold text-gray-500 mb-2 uppercase">{getColLabel(i)}</p>
+                    <div className="w-10 h-10 rounded-lg bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center mb-2">
+                      <LayoutGrid size={20} className="text-blue-400" />
+                    </div>
+                    <p className="text-xs text-center text-gray-500 font-medium">Contenido de {col.type}</p>
+                    <p className="text-xs text-center text-gray-400 mt-0.5">Desde Destino: "{destination}"</p>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
-        <div className="mt-6 flex gap-3 justify-end">
-          <button onClick={onCancel} className="px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">Cancelar</button>
-          <button onClick={() => onConfirm(name, destination)} disabled={saving} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium disabled:opacity-60 transition-colors">
-            {saving ? 'Agregando...' : 'Agregar'}
+        <div className="px-6 py-4 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">Cancelar</button>
+          <button onClick={handleSave} disabled={saving} className="px-6 py-2 text-sm bg-rose-500 hover:bg-rose-600 text-white rounded-lg font-medium disabled:opacity-50">
+            {saving ? 'Guardando...' : 'Guardar Cambios'}
           </button>
         </div>
       </div>
     </div>
-  )
+  );
 }
 
-export default function EditorPortadaPage() {
-  const [templates, setTemplates] = useState<Template[]>([])
-  const [blocks, setBlocks] = useState<Block[]>([])
-  const [loading, setLoading] = useState(true)
-  const [search, setSearch] = useState('')
-  const [hasChanges, setHasChanges] = useState(false)
-  const [saving, setSaving] = useState(false)
-  const [showContModal, setShowContModal] = useState(false)
-  const [activeBlock, setActiveBlock] = useState<Block | null>(null)
-  const [pendingNew, setPendingNew] = useState<{templateId: string, templateName: string, template: Template} | null>(null)
-  const [showNewBlockModal, setShowNewBlockModal] = useState(false)
-  const [deleteBlockId, setDeleteBlockId] = useState<string | null>(null)
-  const [dragIdx, setDragIdx] = useState<number | null>(null)
-  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null)
+export default function LayoutPage() {
+  const [templates, setTemplates] = useState<BlockTemplate[]>([]);
+  const [blocks, setBlocks] = useState<LayoutBlock[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTemplate, setSearchTemplate] = useState('');
+  const [contentEditBlock, setContentEditBlock] = useState<LayoutBlock | null>(null);
+  const [toast, setToast] = useState<{msg: string; ok: boolean} | null>(null);
+  const [dragging, setDragging] = useState<string | null>(null);
+  const [dragOver, setDragOver] = useState<string | null>(null);
+  const dragItemRef = useRef<LayoutBlock | null>(null);
 
-  useEffect(() => { loadData() }, [])
+  const showToast = (msg: string, ok = true) => {
+    setToast({msg, ok});
+    setTimeout(() => setToast(null), 3000);
+  };
 
-  async function loadData() {
-    setLoading(true)
+  const loadData = async () => {
+    setLoading(true);
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : '';
     try {
-      const [tmplData, blocksData] = await Promise.all([getBlockTemplates(), getBlocks()])
-      const tmplList: Template[] = (tmplData.templates || []).map((t: Template & { _id?: string }) => ({ ...t, id: t.id || t._id || '' }))
-      const blockList: Block[] = (blocksData.blocks || [])
-        .map((b: BlockRaw) => ({ ...b, id: b.id || b._id || '' }))
-        .sort((a: Block, b: Block) => (a.order || 0) - (b.order || 0))
-      setTemplates(tmplList)
-      setBlocks(blockList)
-    } catch (e) { console.error(e) }
-    setLoading(false)
-  }
+      const [tRes, bRes] = await Promise.all([
+        fetch(`${API}/block-templates?limit=50`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${API}/blocks?limit=50`, { headers: { Authorization: `Bearer ${token}` } }),
+      ]);
+      const [tData, bData] = await Promise.all([tRes.json(), bRes.json()]);
+      setTemplates(tData.templates || tData.blockTemplates || []);
+      const blist: LayoutBlock[] = bData.blocks || [];
+      blist.sort((a, b) => (a.order || 0) - (b.order || 0));
+      setBlocks(blist);
+    } finally { setLoading(false); }
+  };
 
-  function addBlockToPortada(template: Template) {
-    setPendingNew({ templateId: template.id, templateName: template.name, template })
-    setShowNewBlockModal(true)
-  }
+  useEffect(() => { loadData(); }, []);
 
-  async function confirmAddBlock(name: string, destination: string) {
-    if (!pendingNew) return
-    setSaving(true)
+  const addBlock = async (template: BlockTemplate) => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : '';
     try {
-      await createBlock({ name: name || pendingNew.templateName, template: pendingNew.templateId, destination, order: blocks.length + 1 })
-      setShowNewBlockModal(false)
-      setPendingNew(null)
-      setHasChanges(true)
-      await loadData()
-    } catch (e) { console.error(e) }
-    setSaving(false)
-  }
+      const r = await fetch(`${API}/blocks`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: template.name, template: template.id, order: blocks.length + 1, isVisible: true, content: [] })
+      });
+      if (!r.ok) throw new Error();
+      showToast('Bloque agregado');
+      loadData();
+    } catch { showToast('Error al agregar bloque', false); }
+  };
 
-  async function handleDeleteBlock(id: string) {
+  const deleteBlock = async (block: LayoutBlock) => {
+    if (!confirm('Eliminar este bloque de la portada?')) return;
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : '';
     try {
-      await deleteBlock(id)
-      setDeleteBlockId(null)
-      setHasChanges(true)
-      await loadData()
-    } catch (e) { console.error(e) }
-  }
+      await fetch(`${API}/block/${block.id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+      showToast('Bloque eliminado');
+      loadData();
+    } catch { showToast('Error al eliminar', false); }
+  };
 
-  async function savePortada() {
-    setSaving(true)
+  const toggleVisible = async (block: LayoutBlock) => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : '';
     try {
-      await Promise.all(blocks.map((b, i) => updateBlock(b.id, { name: b.name, template: b.template?.id, order: i + 1, destination: b.destination })))
-      setHasChanges(false)
-    } catch (e) { console.error(e) }
-    setSaving(false)
-  }
+      await fetch(`${API}/block/${block.id}`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isVisible: !block.isVisible })
+      });
+      setBlocks(prev => prev.map(b => b.id === block.id ? { ...b, isVisible: !b.isVisible } : b));
+    } catch { showToast('Error', false); }
+  };
 
-  function onDragStart(idx: number) { setDragIdx(idx) }
-  function onDragOver(e: React.DragEvent<HTMLDivElement>, idx: number) { e.preventDefault(); setDragOverIdx(idx) }
-  function onDrop(idx: number) {
-    if (dragIdx === null || dragIdx === idx) { setDragIdx(null); setDragOverIdx(null); return }
-    const newBlocks = [...blocks]
-    const [moved] = newBlocks.splice(dragIdx, 1)
-    newBlocks.splice(idx, 0, moved)
-    setBlocks(newBlocks)
-    setHasChanges(true)
-    setDragIdx(null)
-    setDragOverIdx(null)
-  }
+  // Drag & drop for blocks order
+  const handleDragStart = (block: LayoutBlock) => {
+    dragItemRef.current = block;
+    setDragging(block.id);
+  };
+  const handleDragOver = (e: React.DragEvent, block: LayoutBlock) => {
+    e.preventDefault();
+    setDragOver(block.id);
+  };
+  const handleDrop = async (targetBlock: LayoutBlock) => {
+    const dragBlock = dragItemRef.current;
+    if (!dragBlock || dragBlock.id === targetBlock.id) {
+      setDragging(null); setDragOver(null); return;
+    }
+    const newOrder = [...blocks];
+    const fromIdx = newOrder.findIndex(b => b.id === dragBlock.id);
+    const toIdx = newOrder.findIndex(b => b.id === targetBlock.id);
+    newOrder.splice(fromIdx, 1);
+    newOrder.splice(toIdx, 0, dragBlock);
+    const updated = newOrder.map((b, i) => ({ ...b, order: i + 1 }));
+    setBlocks(updated);
+    setDragging(null); setDragOver(null);
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : '';
+    try {
+      await Promise.all(updated.map(b =>
+        fetch(`${API}/block/${b.id}`, {
+          method: 'PUT',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ order: b.order })
+        })
+      ));
+      showToast('Orden actualizado');
+    } catch { showToast('Error al reordenar', false); }
+  };
+  const handleDragEnd = () => { setDragging(null); setDragOver(null); };
 
-  const filteredTemplates = templates.filter(t => t.name.toLowerCase().includes(search.toLowerCase()))
+  const filteredTemplates = templates.filter(t =>
+    !searchTemplate || t.name.toLowerCase().includes(searchTemplate.toLowerCase())
+  );
+
+  const getBlockDestination = (block: LayoutBlock) => block.content?.[0]?.destination || 'General';
 
   return (
-    <div className="flex flex-col" style={{minHeight: '80vh'}}>
-      <div className="mb-4">
+    <div className="p-6 max-w-7xl mx-auto">
+      {toast && (
+        <div className={`fixed top-6 right-6 z-50 px-4 py-3 rounded-lg shadow-lg text-white text-sm font-medium ${toast.ok ? 'bg-green-500' : 'bg-red-500'}`}>
+          {toast.msg}
+        </div>
+      )}
+      <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Editor de Portada</h1>
-        <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">Arrastrá, soltá y organizá las instancias de bloques para construir la página principal.</p>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Arrastra, suelta y organiza las instancias de bloques para construir la pagina principal.</p>
       </div>
 
-      <div className="flex gap-4 flex-1">
-        {/* Panel Izquierdo */}
-        <div className="w-64 flex-shrink-0 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 flex flex-col overflow-hidden" style={{maxHeight: '75vh'}}>
-          <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
-            <h2 className="font-bold text-gray-900 dark:text-white text-base">Plantillas de Bloque</h2>
-            <div className="mt-3 relative">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-              <input
-                className="w-full pl-8 pr-3 py-1.5 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Buscar plantilla..."
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-              />
+      <div className="grid grid-cols-[320px_1fr] gap-6">
+        {/* Left: Templates panel */}
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 h-fit sticky top-6">
+          <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800">
+            <h2 className="font-semibold text-gray-800 dark:text-gray-200 text-sm mb-2">Plantillas de Bloque</h2>
+            <div className="relative">
+              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input type="text" placeholder="Buscar plantilla..." value={searchTemplate} onChange={e => setSearchTemplate(e.target.value)} className="w-full pl-8 pr-3 py-1.5 text-xs bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg outline-none focus:border-blue-400" />
             </div>
           </div>
-          <div className="flex-1 overflow-y-auto p-2 space-y-1">
-            {loading ? (
-              <div className="text-center py-8 text-gray-400 text-sm">Cargando...</div>
-            ) : filteredTemplates.length === 0 ? (
-              <div className="text-center py-8 text-gray-400 text-sm">Sin plantillas</div>
-            ) : filteredTemplates.map(t => (
-              <div
-                key={t.id}
-                className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer group"
-                onClick={() => addBlockToPortada(t)}
-                title="Agregar a portada"
-              >
-                <div className="flex items-center gap-2 min-w-0">
+          <div className="p-2 max-h-[60vh] overflow-y-auto">
+            {filteredTemplates.map(t => (
+              <div key={t.id} className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 group">
+                <div className="w-8 h-8 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center flex-shrink-0">
                   {layoutIcon(t.layout)}
-                  <span className="text-sm text-gray-700 dark:text-gray-300 truncate">{t.name}</span>
                 </div>
-                <Plus className="w-3.5 h-3.5 text-gray-300 group-hover:text-blue-500 flex-shrink-0 transition-colors" />
+                <span className="flex-1 text-sm text-gray-700 dark:text-gray-300 truncate">{t.name}</span>
+                <button
+                  onClick={() => addBlock(t)}
+                  className="opacity-0 group-hover:opacity-100 p-1 rounded bg-rose-500 hover:bg-rose-600 text-white transition-opacity"
+                  title="Agregar a portada"
+                >
+                  <Plus size={12} />
+                </button>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Panel Derecho */}
-        <div className="flex-1 flex flex-col min-w-0">
-          <div className="flex items-start justify-between mb-3 gap-2 flex-wrap">
-            <h2 className="font-bold text-gray-900 dark:text-white">Previsualización de la Portada</h2>
-            <div className="flex gap-2 items-center flex-wrap">
-              {hasChanges && (
-                <div className="text-xs bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-700 px-3 py-1.5 rounded-lg">
-                  Se detectaron cambios en la portada. Asegúrarte de guardar para que se reflejen en el sitio en vivo.
-                </div>
-              )}
-              <button onClick={() => { setHasChanges(false); loadData() }} className="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
-                Descartar
-              </button>
-              <button onClick={savePortada} disabled={saving} className="flex items-center gap-2 px-4 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium transition-colors disabled:opacity-60">
-                <Save className="w-3.5 h-3.5" />
-                {saving ? 'Guardando...' : 'Guardar Cambios'}
-              </button>
-            </div>
+        {/* Right: Preview panel */}
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700">
+          <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+            <h2 className="font-semibold text-gray-800 dark:text-gray-200 text-sm">Previsualizacion de la Portada</h2>
+            <span className="text-xs text-gray-400">{blocks.length} bloques</span>
           </div>
-
-          <div className="flex-1 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-y-auto p-3 space-y-2" style={{maxHeight: '70vh'}}>
+          <div className="p-4 space-y-3">
             {loading ? (
-              <div className="text-center py-20 text-gray-400">Cargando portada...</div>
+              <div className="flex items-center justify-center py-16"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500" /></div>
             ) : blocks.length === 0 ? (
-              <div className="text-center py-20">
-                <LayoutTemplate className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                <p className="text-gray-500 dark:text-gray-400 text-sm">La portada está vacía</p>
-                <p className="text-gray-400 dark:text-gray-500 text-xs mt-1">Hacé click en una plantilla del panel izquierdo para agregar bloques</p>
+              <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+                <LayoutGrid size={48} className="mb-3 opacity-30" />
+                <p className="text-sm font-medium">No hay bloques en la portada</p>
+                <p className="text-xs mt-1">Haz click en el + de una plantilla para agregarla.</p>
               </div>
-            ) : blocks.map((block, idx) => (
-              <div
-                key={block.id}
-                draggable
-                onDragStart={() => onDragStart(idx)}
-                onDragOver={(e: React.DragEvent<HTMLDivElement>) => onDragOver(e, idx)}
-                onDrop={() => onDrop(idx)}
-                className={`border rounded-xl p-3 transition-all ${dragOverIdx === idx ? 'border-blue-400 bg-blue-50/50 dark:bg-blue-900/10' : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-750'}`}
-              >
-                <div className="flex items-center gap-2 mb-2">
-                  <GripVertical className="w-4 h-4 text-gray-400 cursor-grab flex-shrink-0" />
-                  {layoutIcon(block.template?.layout || 'Full-width', 'w-3.5 h-3.5')}
-                  <div className="relative flex-1 min-w-0">
+            ) : (
+              blocks.map(block => (
+                <div
+                  key={block.id}
+                  draggable
+                  onDragStart={() => handleDragStart(block)}
+                  onDragOver={e => handleDragOver(e, block)}
+                  onDrop={() => handleDrop(block)}
+                  onDragEnd={handleDragEnd}
+                  className={`border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden transition-all ${dragging === block.id ? 'opacity-50' : ''} ${dragOver === block.id ? 'border-blue-400 bg-blue-50/30' : ''}`}
+                >
+                  {/* Block header */}
+                  <div className="flex items-center gap-2 px-4 py-2.5 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700">
+                    <div className="cursor-grab text-gray-300 hover:text-gray-500">
+                      <GripVertical size={15} />
+                    </div>
+                    <div className="w-7 h-7 rounded bg-white dark:bg-gray-700 flex items-center justify-center border border-gray-200 dark:border-gray-600">
+                      {layoutIcon(block.template?.layout)}
+                    </div>
                     <select
-                      className="w-full pl-2 pr-7 py-1 border border-gray-200 dark:border-gray-700 rounded text-xs bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 focus:outline-none appearance-none"
-                      value={block.destination || 'general'}
-                      onChange={e => {
-                        const newBlocks = blocks.map((b, i) => i === idx ? {...b, destination: e.target.value} : b)
-                        setBlocks(newBlocks)
-                        setHasChanges(true)
+                      value={getBlockDestination(block)}
+                      onChange={async e => {
+                        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : '';
+                        await fetch(`${API}/block/${block.id}`, {
+                          method: 'PUT',
+                          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ content: [{ destination: e.target.value }] })
+                        });
+                        setBlocks(prev => prev.map(b => b.id === block.id ? { ...b, content: [{ destination: e.target.value }] } : b));
                       }}
+                      className="flex-1 text-xs px-2 py-1 border border-gray-200 dark:border-gray-700 rounded bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 outline-none"
                     >
-                      {DESTINATIONS.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
+                      {DESTINATIONS.map(d => <option key={d} value={d}>{d}</option>)}
                     </select>
-                    <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400 pointer-events-none" />
+                    <button
+                      onClick={() => setContentEditBlock(block)}
+                      className="flex items-center gap-1 px-2 py-1 text-xs border border-gray-200 dark:border-gray-700 rounded hover:bg-white dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400"
+                    >
+                      <Edit2 size={11} />Cont.
+                    </button>
+                    <button onClick={() => toggleVisible(block)} className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400" title={block.isVisible ? 'Ocultar' : 'Mostrar'}>
+                      {block.isVisible ? <Eye size={13} /> : <EyeOff size={13} />}
+                    </button>
+                    <button onClick={() => deleteBlock(block)} className="p-1.5 rounded hover:bg-red-50 dark:hover:bg-red-900/20 text-red-400">
+                      <Trash2 size={13} />
+                    </button>
                   </div>
-                  <button
-                    onClick={() => { setActiveBlock(block); setShowContModal(true) }}
-                    className="flex items-center gap-1 p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors text-xs"
-                  >
-                    <Pencil className="w-3.5 h-3.5" />
-                    Cont.
-                  </button>
-                  <button onClick={() => setDeleteBlockId(block.id)} className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors">
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+                  {/* Block preview */}
+                  <div className={`p-3 ${!block.isVisible ? 'opacity-40' : ''}`}>
+                    {block.template ? (
+                      <div
+                        className="grid gap-2"
+                        style={{gridTemplateColumns: (() => {
+                          const l = block.template?.layout || '';
+                          if (l.includes('Full')) return '1fr';
+                          if (l === '2 Cols') return '1fr 1fr';
+                          if (l === '3 Cols') return '1fr 1fr 1fr';
+                          if (l === '4 Cols') return '1fr 1fr 1fr 1fr';
+                          if (l.includes('Hero')) return '2fr 1fr';
+                          return '1fr';
+                        })()}}
+                      >
+                        {(block.template?.columns || []).map((col, i) => (
+                          <div key={i} className="bg-gray-100 dark:bg-gray-800 rounded-lg h-16 flex items-center justify-center">
+                            <span className="text-xs text-gray-400">{col.type}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="h-12 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center">
+                        <span className="text-xs text-gray-400">{block.name}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
-                {block.template && <BlockPreview template={block.template} />}
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
       </div>
 
-      {showNewBlockModal && pendingNew && (
-        <NewBlockModal
-          templateName={pendingNew.templateName}
-          onConfirm={confirmAddBlock}
-          onCancel={() => { setShowNewBlockModal(false); setPendingNew(null) }}
-          saving={saving}
+      {contentEditBlock && (
+        <ContentModal
+          block={contentEditBlock}
+          onClose={() => setContentEditBlock(null)}
+          onSaved={(dest) => {
+            setBlocks(prev => prev.map(b => b.id === contentEditBlock.id ? { ...b, content: [{ destination: dest }] } : b));
+            showToast('Contenido actualizado');
+          }}
         />
       )}
-
-      {showContModal && activeBlock && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-md shadow-2xl p-6">
-            <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-1">Contenido del Bloque</h2>
-            <p className="text-sm text-gray-500 mb-4">Plantilla: <strong>{activeBlock.template?.name}</strong></p>
-            <div className="space-y-3">
-              {(activeBlock.template?.columns || []).map((col, i) => (
-                <div key={i} className="p-3 rounded-lg border border-gray-200 dark:border-gray-700">
-                  <span className={`text-xs font-medium px-2 py-0.5 rounded ${typeColor(col.type)}`}>{col.type}</span>
-                  <p className="text-xs text-gray-400 mt-1">Columna {i + 1}</p>
-                </div>
-              ))}
-            </div>
-            <div className="mt-6 flex justify-end">
-              <button onClick={() => setShowContModal(false)} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium">Cerrar</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {deleteBlockId && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-sm shadow-2xl p-6">
-            <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-2">Eliminar Bloque</h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">¿Eliminamos este bloque de la portada?</p>
-            <div className="flex gap-3 justify-end">
-              <button onClick={() => setDeleteBlockId(null)} className="px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">Cancelar</button>
-              <button onClick={() => handleDeleteBlock(deleteBlockId)} className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium transition-colors">Eliminar</button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
-  )
+  );
 }
