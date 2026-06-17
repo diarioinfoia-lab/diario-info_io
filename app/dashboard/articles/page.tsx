@@ -1,14 +1,22 @@
 'use client';
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Search, Plus, Trash2, MoreVertical, FileText, Bold, Italic, Underline, List, ListOrdered, Link2, Image, Video, Sparkles, Upload, X, ChevronDown, Calendar } from 'lucide-react';
+import { Search, Plus, Trash2, MoreVertical, FileText, Bold, Italic, Underline, List, ListOrdered, Link2, Image, Video, Sparkles, Upload, X, RefreshCw, ImageIcon } from 'lucide-react';
 import { getArticles, createArticle, updateArticle, deleteArticle, getCategories } from '@/lib/api';
 
-interface Category {
-  id: string;
-  name: string;
-  color?: string;
-}
+const API = 'https://api2.diarioinfo.com';
 
+interface Category { id: string; name: string; color?: string; }
+interface MediaFile {
+  id: string;
+  fileName: string;
+  originalName: string;
+  fileUrl: string;
+  thumbnailUrl?: string;
+  mimeType?: string;
+  size?: number;
+  width?: number;
+  height?: number;
+}
 interface Article {
   id: string;
   title: string;
@@ -24,7 +32,6 @@ interface Article {
   publishedAt?: string;
   createdAt?: string;
   isHighlighted?: boolean;
-  commentsDisabled?: boolean;
   createdBy?: { name: string };
 }
 
@@ -44,66 +51,189 @@ const DESTINATIONS = [
 const MONTHS = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
 
 
-// Simple Rich Text Editor
 function RichTextEditor({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const editorRef = useRef<HTMLDivElement>(null);
-
   useEffect(() => {
     if (editorRef.current && editorRef.current.innerHTML !== value) {
       editorRef.current.innerHTML = value || '';
     }
   }, []);
-
   const execCmd = (cmd: string, val?: string) => {
     document.execCommand(cmd, false, val);
     editorRef.current?.focus();
     onChange(editorRef.current?.innerHTML || '');
   };
-
   const insertLink = () => {
     const url = prompt('URL del enlace:');
     if (url) execCmd('createLink', url);
   };
-
   const insertImage = () => {
     const url = prompt('URL de la imagen:');
     if (url) execCmd('insertImage', url);
   };
-
   const insertVideo = () => {
     const url = prompt('URL del video (Youtube embed):');
     if (url) {
-      const iframe = `<div class="video-wrapper"><iframe src="${url}" frameborder="0" allowfullscreen style="width:100%;max-width:560px;height:315px;"></iframe></div>`;
+      const iframe = `<div><iframe src="${url}" frameborder="0" allowfullscreen style="width:100%;max-width:560px;height:315px;"></iframe></div>`;
       document.execCommand('insertHTML', false, iframe);
       editorRef.current?.focus();
       onChange(editorRef.current?.innerHTML || '');
     }
   };
-
   return (
     <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-      {/* Toolbar */}
       <div className="flex items-center gap-1 px-2 py-2 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex-wrap">
         <button type="button" onClick={() => execCmd('bold')} className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300" title="Negrita"><Bold size={15} /></button>
         <button type="button" onClick={() => execCmd('italic')} className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300" title="Italica"><Italic size={15} /></button>
         <button type="button" onClick={() => execCmd('underline')} className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300" title="Subrayado"><Underline size={15} /></button>
         <div className="w-px h-5 bg-gray-300 dark:bg-gray-600 mx-1" />
-        <button type="button" onClick={() => execCmd('insertUnorderedList')} className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300" title="Lista"><List size={15} /></button>
-        <button type="button" onClick={() => execCmd('insertOrderedList')} className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300" title="Lista numerada"><ListOrdered size={15} /></button>
+        <button type="button" onClick={() => execCmd('insertUnorderedList')} className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"><List size={15} /></button>
+        <button type="button" onClick={() => execCmd('insertOrderedList')} className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"><ListOrdered size={15} /></button>
         <div className="w-px h-5 bg-gray-300 dark:bg-gray-600 mx-1" />
-        <button type="button" onClick={insertLink} className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300" title="Insertar enlace"><Link2 size={15} /></button>
-        <button type="button" onClick={insertImage} className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300" title="Insertar imagen"><Image size={15} /></button>
-        <button type="button" onClick={insertVideo} className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300" title="Insertar video"><Video size={15} /></button>
+        <button type="button" onClick={insertLink} className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"><Link2 size={15} /></button>
+        <button type="button" onClick={insertImage} className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"><Image size={15} /></button>
+        <button type="button" onClick={insertVideo} className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"><Video size={15} /></button>
       </div>
-      {/* Editable area */}
       <div
         ref={editorRef}
         contentEditable
         suppressContentEditableWarning
         onInput={() => onChange(editorRef.current?.innerHTML || '')}
-        className="min-h-[200px] p-3 text-sm text-gray-900 dark:text-white bg-white dark:bg-gray-900 outline-none focus:ring-0 prose prose-sm max-w-none"
+        className="min-h-[200px] p-3 text-sm text-gray-900 dark:text-white bg-white dark:bg-gray-900 outline-none"
         style={{minHeight: '200px'}}
       />
+    </div>
+  );
+}
+
+
+function MediaPickerModal({
+  onSelect,
+  onClose,
+}: {
+  onSelect: (url: string) => void;
+  onClose: () => void;
+}) {
+  const [files, setFiles] = useState<MediaFile[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const loadFiles = async () => {
+    setLoading(true);
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : '';
+      const r = await fetch(`${API}/files?limit=48`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const d = await r.json();
+      if (d.files) setFiles(d.files);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { loadFiles(); }, []);
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : '';
+      const formData = new FormData();
+      formData.append('file', file);
+      const r = await fetch(`${API}/files`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+      const d = await r.json();
+      if (d.file || d.fileUrl) {
+        await loadFiles();
+      }
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const getFullUrl = (url: string) => {
+    if (!url) return '';
+    if (url.startsWith('http')) return url;
+    return `${API}${url}`;
+  };
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4">
+      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-3xl max-h-[85vh] flex flex-col">
+        {/* Header */}
+        <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Seleccionar Archivo</h2>
+            <p className="text-xs text-gray-500 mt-0.5">Haz clic en un archivo para seleccionarlo o carga uno nuevo.</p>
+          </div>
+          <button onClick={onClose} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400"><X size={18} /></button>
+        </div>
+
+        {/* Actions */}
+        <div className="px-6 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center gap-3">
+          <label className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg text-sm text-gray-700 dark:text-gray-300 cursor-pointer font-medium transition-colors">
+            <Upload size={15} />
+            {uploading ? 'Cargando...' : 'Cargar archivo'}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleUpload}
+              disabled={uploading}
+            />
+          </label>
+          <button
+            onClick={loadFiles}
+            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 transition-colors"
+            title="Refrescar"
+          >
+            <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
+          </button>
+        </div>
+
+        {/* Files grid */}
+        <div className="overflow-y-auto flex-1 p-4">
+          {loading ? (
+            <div className="flex items-center justify-center py-16">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500" />
+            </div>
+          ) : files.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+              <ImageIcon size={48} className="mb-3 opacity-30" />
+              <p className="text-sm">No hay archivos. Carga el primero.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-4 gap-3">
+              {files.map((file) => (
+                <button
+                  key={file.id || file.fileName}
+                  onClick={() => { onSelect(getFullUrl(file.fileUrl)); onClose(); }}
+                  className="relative aspect-video rounded-lg overflow-hidden border-2 border-transparent hover:border-blue-500 transition-all group bg-gray-100 dark:bg-gray-800"
+                  title={file.originalName || file.fileName}
+                >
+                  <img
+                    src={getFullUrl(file.thumbnailUrl || file.fileUrl)}
+                    alt={file.originalName || file.fileName}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = getFullUrl(file.fileUrl);
+                    }}
+                  />
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all" />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -120,11 +250,10 @@ export default function ArticlesPage() {
   const [showCategoryMenu, setShowCategoryMenu] = useState(false);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const [showMediaPicker, setShowMediaPicker] = useState(false);
   const [editTarget, setEditTarget] = useState<Article | null>(null);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
-
-  // Form state
   const [fTitle, setFTitle] = useState('');
   const [fSlug, setFSlug] = useState('');
   const [fDesc, setFDesc] = useState('');
@@ -139,6 +268,7 @@ export default function ArticlesPage() {
   const [fPubMonth, setFPubMonth] = useState(new Date().getMonth());
   const [fPubYear, setFPubYear] = useState(new Date().getFullYear());
   const [fIsHighlighted, setFIsHighlighted] = useState(false);
+  const [hoveringImage, setHoveringImage] = useState(false);
 
   const showToast = (msg: string, ok = true) => {
     setToast({ msg, ok });
@@ -275,52 +405,36 @@ export default function ArticlesPage() {
 
   return (
     <div className="p-6 max-w-6xl mx-auto">
-      {/* Toast */}
       {toast && (
         <div className={`fixed top-6 right-6 z-50 px-4 py-3 rounded-lg shadow-lg text-white text-sm font-medium ${toast.ok ? 'bg-green-500' : 'bg-red-500'}`}>
           {toast.msg}
         </div>
       )}
 
-      {/* Header */}
       <div className="flex items-start justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Noticias</h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Edita, crea y gestiona todos los articulos del diario.</p>
         </div>
         <div className="flex items-center gap-2">
-          <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+          <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm hover:bg-gray-50 dark:hover:bg-gray-800">
             <Upload size={15} />
             Importar Noticia
           </button>
-          <button
-            onClick={openCreate}
-            className="flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium text-sm transition-colors"
-          >
+          <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium text-sm">
             <Plus size={15} />
             Nueva Noticia
           </button>
         </div>
       </div>
 
-      {/* Filters */}
       <div className="flex items-center gap-3 mb-4">
         <div className="relative flex-1">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Buscar por titulo, categoria o autor..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 text-sm bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg outline-none focus:border-blue-400"
-          />
+          <input type="text" placeholder="Buscar por titulo, categoria o autor..." value={search} onChange={e => setSearch(e.target.value)} className="w-full pl-9 pr-4 py-2 text-sm bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg outline-none focus:border-blue-400" />
         </div>
-        {/* Status filter */}
         <div className="relative">
-          <button
-            onClick={() => { setShowStatusMenu(!showStatusMenu); setShowCategoryMenu(false); }}
-            className="flex items-center gap-2 px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
-          >
+          <button onClick={() => { setShowStatusMenu(!showStatusMenu); setShowCategoryMenu(false); }} className="flex items-center gap-2 px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="11" y1="18" x2="13" y2="18"/></svg>
             Estado {filterStatus && <span className="text-blue-500">({filterStatus === 'draft' ? 'Borrador' : 'Publicado'})</span>}
           </button>
@@ -332,12 +446,8 @@ export default function ArticlesPage() {
             </div>
           )}
         </div>
-        {/* Category filter */}
         <div className="relative">
-          <button
-            onClick={() => { setShowCategoryMenu(!showCategoryMenu); setShowStatusMenu(false); }}
-            className="flex items-center gap-2 px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
-          >
+          <button onClick={() => { setShowCategoryMenu(!showCategoryMenu); setShowStatusMenu(false); }} className="flex items-center gap-2 px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="11" y1="18" x2="13" y2="18"/></svg>
             Categorias {filterCategory && <span className="text-blue-500">•</span>}
           </button>
@@ -355,7 +465,6 @@ export default function ArticlesPage() {
         </div>
       </div>
 
-      {/* Table */}
       <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
         <div className="grid grid-cols-[1fr_160px_120px_100px_120px_80px] px-4 py-3 border-b border-gray-100 dark:border-gray-800 text-xs font-semibold text-gray-500 uppercase tracking-wide">
           <span>Titulo</span><span>Categoria</span><span>Autor</span><span>Estado</span><span>Fecha</span><span></span>
@@ -370,30 +479,19 @@ export default function ArticlesPage() {
           </div>
         ) : (
           filtered.map(art => (
-            <div key={art.id} className="grid grid-cols-[1fr_160px_120px_100px_120px_80px] items-center px-4 py-3 border-b border-gray-50 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+            <div key={art.id} className="grid grid-cols-[1fr_160px_120px_100px_120px_80px] items-center px-4 py-3 border-b border-gray-50 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50">
               <div className="min-w-0 pr-4">
-                <div className="flex items-center gap-2">
-                  {art.isHighlighted && <span className="text-yellow-500 text-xs font-bold">DEST</span>}
-                  <p className="font-medium text-gray-900 dark:text-white text-sm truncate">{art.title}</p>
-                </div>
+                <p className="font-medium text-gray-900 dark:text-white text-sm truncate">{art.title}</p>
                 {art.description && <p className="text-xs text-gray-400 truncate mt-0.5">{art.description}</p>}
               </div>
-              <div>
-                <span className="text-xs px-2 py-1 rounded-full font-medium text-white" style={{backgroundColor: getCatColor(art.category)}}>
-                  {getCatName(art.category)}
-                </span>
-              </div>
-              <div className="text-sm text-gray-500 dark:text-gray-400 truncate">
-                {typeof art.createdBy === 'object' ? art.createdBy?.name : '-'}
-              </div>
+              <div><span className="text-xs px-2 py-1 rounded-full font-medium text-white" style={{backgroundColor: getCatColor(art.category)}}>{getCatName(art.category)}</span></div>
+              <div className="text-sm text-gray-500 dark:text-gray-400 truncate">{typeof art.createdBy === 'object' ? art.createdBy?.name : '-'}</div>
               <div>
                 <span className={`text-xs px-2 py-1 rounded-full font-medium ${art.status === 'published' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'}`}>
                   {art.status === 'published' ? 'Publicado' : 'Borrador'}
                 </span>
               </div>
-              <div className="text-xs text-gray-500 dark:text-gray-400">
-                {art.createdAt ? new Date(art.createdAt).toLocaleDateString('es-AR') : '-'}
-              </div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">{art.createdAt ? new Date(art.createdAt).toLocaleDateString('es-AR') : '-'}</div>
               <div className="flex items-center justify-end gap-1">
                 <button onClick={() => handleDelete(art.id)} className="p-1.5 rounded hover:bg-red-50 dark:hover:bg-red-900/20 text-red-400 hover:text-red-600"><Trash2 size={14} /></button>
                 <div className="relative">
@@ -415,11 +513,18 @@ export default function ArticlesPage() {
       )}
 
 
+      {/* Media Picker Modal */}
+      {showMediaPicker && (
+        <MediaPickerModal
+          onSelect={(url) => setFFeaturedImage(url)}
+          onClose={() => setShowMediaPicker(false)}
+        />
+      )}
+
       {/* Create/Edit Modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] flex flex-col">
-            {/* Modal header */}
             <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-lg bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center">
@@ -433,109 +538,79 @@ export default function ArticlesPage() {
               <button onClick={() => setShowModal(false)} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400"><X size={18} /></button>
             </div>
 
-            {/* Modal body - scrollable */}
             <div className="overflow-y-auto flex-1 px-6 py-5 space-y-6">
-              
               {/* Section 1: Contenido Principal */}
               <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4 space-y-4">
                 <h3 className="font-semibold text-gray-800 dark:text-gray-200 text-sm">Contenido Principal</h3>
-                
-                {/* Title */}
                 <div>
                   <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Titulo del articulo</label>
-                  <input
-                    type="text"
-                    value={fTitle}
-                    onChange={e => { setFTitle(e.target.value); if (!editTarget) setFSlug(slugify(e.target.value)); }}
-                    placeholder="El titular principal"
-                    className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:border-blue-400"
-                  />
+                  <input type="text" value={fTitle} onChange={e => { setFTitle(e.target.value); if (!editTarget) setFSlug(slugify(e.target.value)); }} placeholder="El titular principal" className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:border-blue-400" />
                 </div>
-
-                {/* Slug */}
                 <div>
                   <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Slug (URL amigable)</label>
-                  <input
-                    type="text"
-                    value={fSlug}
-                    onChange={e => setFSlug(e.target.value)}
-                    placeholder="titulo-de-la-noticia"
-                    className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 outline-none focus:border-blue-400 font-mono"
-                  />
+                  <input type="text" value={fSlug} onChange={e => setFSlug(e.target.value)} placeholder="titulo-de-la-noticia" className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 outline-none focus:border-blue-400 font-mono" />
                 </div>
-
-                {/* Description */}
                 <div>
                   <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Descripcion corta</label>
-                  <textarea
-                    value={fDesc}
-                    onChange={e => setFDesc(e.target.value)}
-                    placeholder="Un resumen atractivo para listados y SEO"
-                    rows={2}
-                    className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:border-blue-400 resize-none"
-                  />
+                  <textarea value={fDesc} onChange={e => setFDesc(e.target.value)} placeholder="Un resumen atractivo para listados y SEO" rows={2} className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:border-blue-400 resize-none" />
                 </div>
 
-                {/* Featured Image */}
+                {/* Featured Image - igual al original */}
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Imagen Principal</label>
+                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Imagen Principal <span className="text-red-400">*</span></label>
                   {fFeaturedImage ? (
-                    <div className="relative rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
-                      <img src={fFeaturedImage} alt="featured" className="w-full h-40 object-cover" />
-                      <button
-                        onClick={() => setFFeaturedImage('')}
-                        className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600"
-                      >
-                        <X size={12} />
-                      </button>
+                    <div
+                      className="relative rounded-xl overflow-hidden cursor-pointer border border-gray-200 dark:border-gray-700"
+                      onMouseEnter={() => setHoveringImage(true)}
+                      onMouseLeave={() => setHoveringImage(false)}
+                      onClick={() => setShowMediaPicker(true)}
+                    >
+                      <img src={fFeaturedImage} alt="featured" className="w-full h-52 object-cover" />
+                      {hoveringImage && (
+                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                          <span className="bg-white/90 text-gray-800 text-sm font-medium px-4 py-2 rounded-full flex items-center gap-2">
+                            <Image size={15} />
+                            Cambiar Imagen
+                          </span>
+                        </div>
+                      )}
                     </div>
                   ) : (
-                    <div className="border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-red-50 dark:bg-red-900/10">
-                      <p className="text-sm text-gray-500 text-center mb-2">Anade una imagen al cuerpo</p>
-                      <p className="text-xs text-gray-400 text-center mb-3">La primera imagen que agregues se mostrara aqui como la principal.</p>
-                      <div className="flex gap-2">
-                        <input
-                          type="text"
-                          value={fFeaturedImage}
-                          onChange={e => setFFeaturedImage(e.target.value)}
-                          placeholder="URL de la imagen..."
-                          className="flex-1 px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:border-blue-400"
-                        />
-                        <button
-                          onClick={() => {}}
-                          className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 text-sm rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300"
-                        >
-                          Seleccionar Manualmente
-                        </button>
+                    <div className="rounded-xl bg-red-50 dark:bg-red-900/10 border-2 border-dashed border-red-100 dark:border-red-900/30 p-8 flex flex-col items-center justify-center gap-3">
+                      <ImageIcon size={36} className="text-gray-300" />
+                      <div className="text-center">
+                        <p className="text-sm font-medium text-gray-500">Anade una imagen al cuerpo</p>
+                        <p className="text-xs text-gray-400 mt-1">La primera imagen que agregues se mostrara aqui como la principal.</p>
                       </div>
+                      <button
+                        type="button"
+                        onClick={() => setShowMediaPicker(true)}
+                        className="px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-white dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400 transition-colors bg-white/70 dark:bg-gray-900/50"
+                      >
+                        Seleccionar Manualmente
+                      </button>
                     </div>
                   )}
                 </div>
               </div>
 
-              {/* Section 2: Cuerpo de la Noticia */}
+              {/* Section 2: Cuerpo */}
               <div className="space-y-2">
                 <h3 className="font-semibold text-gray-800 dark:text-gray-200 text-sm">Cuerpo de la Noticia</h3>
                 <RichTextEditor value={fContent} onChange={setFContent} />
               </div>
 
-              {/* Section 3: Detalles de Publicacion */}
+              {/* Section 3: Detalles */}
               <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4 space-y-4">
                 <h3 className="font-semibold text-gray-800 dark:text-gray-200 text-sm">Detalles de Publicacion</h3>
                 <div className="grid grid-cols-2 gap-4">
-                  {/* Category */}
                   <div>
                     <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Categoria</label>
-                    <select
-                      value={fCategory}
-                      onChange={e => setFCategory(e.target.value)}
-                      className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:border-blue-400"
-                    >
+                    <select value={fCategory} onChange={e => setFCategory(e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:border-blue-400">
                       <option value="">Seleccionar categoria</option>
                       {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                   </div>
-                  {/* Date */}
                   <div>
                     <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Fecha de Publicacion</label>
                     <div className="flex gap-1">
@@ -553,77 +628,44 @@ export default function ArticlesPage() {
                 </div>
               </div>
 
-              {/* Section 4: Jerarquia y SEO */}
+              {/* Section 4: SEO */}
               <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4 space-y-4">
                 <h3 className="font-semibold text-gray-800 dark:text-gray-200 text-sm">Jerarquia y SEO</h3>
                 <div className="grid grid-cols-2 gap-4">
-                  {/* Priority */}
                   <div>
                     <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Prioridad</label>
-                    <select
-                      value={fPriority}
-                      onChange={e => setFPriority(Number(e.target.value))}
-                      className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:border-blue-400"
-                    >
+                    <select value={fPriority} onChange={e => setFPriority(Number(e.target.value))} className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:border-blue-400">
                       {PRIORITIES.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
                     </select>
                   </div>
-                  {/* Destination */}
                   <div>
                     <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Destino</label>
-                    <select
-                      value={fDestination}
-                      onChange={e => setFDestination(e.target.value)}
-                      className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:border-blue-400"
-                    >
+                    <select value={fDestination} onChange={e => setFDestination(e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:border-blue-400">
                       {DESTINATIONS.map(d => <option key={d} value={d}>{d}</option>)}
                     </select>
                   </div>
                 </div>
-
-                {/* Tags */}
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <label className="text-xs font-medium text-gray-600 dark:text-gray-400">Etiquetas (Tags)</label>
-                    <button className="flex items-center gap-1 text-xs text-blue-500 hover:text-blue-600">
-                      <Sparkles size={12} />
-                      Sugerir con IA
-                    </button>
+                    <button className="flex items-center gap-1 text-xs text-blue-500 hover:text-blue-600"><Sparkles size={12} />Sugerir con IA</button>
                   </div>
                   {fTags.length > 0 && (
                     <div className="flex flex-wrap gap-1.5 mb-2">
                       {fTags.map(tag => (
                         <span key={tag} className="flex items-center gap-1 px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs rounded-full">
-                          {tag}
-                          <button onClick={() => removeTag(tag)} className="hover:text-red-500"><X size={10} /></button>
+                          {tag}<button onClick={() => removeTag(tag)} className="hover:text-red-500"><X size={10} /></button>
                         </span>
                       ))}
                     </div>
                   )}
                   <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={fTagInput}
-                      onChange={e => setFTagInput(e.target.value)}
-                      onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addTag())}
-                      placeholder="Anadir etiqueta y presionar Enter"
-                      className="flex-1 px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:border-blue-400"
-                    />
-                    <button
-                      onClick={addTag}
-                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg font-medium transition-colors"
-                    >
-                      Anadir
-                    </button>
+                    <input type="text" value={fTagInput} onChange={e => setFTagInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addTag())} placeholder="Anadir etiqueta y presionar Enter" className="flex-1 px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:border-blue-400" />
+                    <button onClick={addTag} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg font-medium">Anadir</button>
                   </div>
                 </div>
-
-                {/* Highlighted toggle */}
                 <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setFIsHighlighted(!fIsHighlighted)}
-                    className={`relative w-10 h-5 rounded-full transition-colors ${fIsHighlighted ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'}`}
-                  >
+                  <button onClick={() => setFIsHighlighted(!fIsHighlighted)} className={`relative w-10 h-5 rounded-full transition-colors ${fIsHighlighted ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'}`}>
                     <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${fIsHighlighted ? 'translate-x-5' : 'translate-x-0'}`} />
                   </button>
                   <span className="text-sm text-gray-700 dark:text-gray-300">Articulo destacado</span>
@@ -631,27 +673,13 @@ export default function ArticlesPage() {
               </div>
             </div>
 
-            {/* Modal footer */}
             <div className="px-6 py-4 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between">
-              <button onClick={() => setShowModal(false)} className="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
-                Cancelar
-              </button>
+              <button onClick={() => setShowModal(false)} className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">Cancelar</button>
               <div className="flex gap-3">
-                <button
-                  onClick={() => handleSave('draft')}
-                  disabled={saving}
-                  className="flex items-center gap-2 px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors disabled:opacity-50"
-                >
-                  <FileText size={14} />
-                  {saving ? 'Guardando...' : 'Guardar Borrador'}
+                <button onClick={() => handleSave('draft')} disabled={saving} className="flex items-center gap-2 px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg disabled:opacity-50">
+                  <FileText size={14} />{saving ? 'Guardando...' : 'Guardar Borrador'}
                 </button>
-                <button
-                  onClick={() => handleSave('published')}
-                  disabled={saving}
-                  className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
-                >
-                  Publicar
-                </button>
+                <button onClick={() => handleSave('published')} disabled={saving} className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium disabled:opacity-50">Publicar</button>
               </div>
             </div>
           </div>
