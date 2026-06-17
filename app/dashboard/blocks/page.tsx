@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
-import { Search, Plus, MoreVertical, X, Edit2, Trash2, LayoutGrid, LayoutTemplate, Columns, AlignLeft, FileText, Film } from 'lucide-react';
+import { Search, Plus, MoreVertical, X, Edit2, Trash2, LayoutGrid, LayoutTemplate, Columns2, AlignLeft, FileText } from 'lucide-react';
 
 const API = 'https://api2.diarioinfo.com';
 
@@ -107,7 +107,7 @@ function TemplateModal({
     } finally { setSaving(false); }
   };
 
-  const colLabels: Record<string,string> = {
+  const colLabels: Record<string,string[]> = {
     'Full-width': ['Principal'],
     '2 Cols': ['Columna 1', 'Columna 2'],
     '3 Cols': ['Columna 1', 'Columna 2', 'Columna 3'],
