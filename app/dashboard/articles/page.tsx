@@ -186,31 +186,29 @@ function MediaPickerModal({
     setUploading(true);
     setUploadError('');
     try {
-      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : '';
+      // Upload to Imgur (anonymous, no server dependency)
       const formData = new FormData();
-      formData.append('file', file);
-      const r = await fetch(`${API}/files/upload`, {
+      formData.append('image', file);
+      const r = await fetch('https://api.imgur.com/3/image', {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: 'Client-ID 546c25a59c58ad7' },
         body: formData,
       });
       if (r.ok) {
         const d = await r.json();
-        const url = d.file?.fileUrl || d.fileUrl || d.url || '';
+        const url = d.data?.link || '';
         if (url) {
-          onSelect(getFullUrl(url));
+          onSelect(url);
           onClose();
           return;
         }
-        await loadFiles();
-        setTab('gallery');
+        setUploadError('No se pudo obtener la URL de la imagen.');
       } else {
-        const text = await r.text();
-        const msg = text.replace(/<[^>]+>/g,' ').replace(/s+/g,' ').trim().substring(0,120);
-        setUploadError('Error del servidor: ' + msg);
+        const d = await r.json().catch(() => ({}));
+        setUploadError('Error al subir: ' + (d.data?.error || r.status));
       }
     } catch (err) {
-      setUploadError('Error de conexion al subir archivo.');
+      setUploadError('Error de conexión al subir archivo.');
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
