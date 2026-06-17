@@ -19,20 +19,24 @@ function getHeaders() {
 }
 
 const DESTINATIONS = [
-  'General',
-  'Principal',
-  'Deportes',
-  'Economia',
-  'Politica',
-  'Cultura',
-  'Tecnologia',
-  'Internacional',
-  'Sociedad',
-  'Especial',
+  { value: 'general', label: 'General' },
+  { value: 'especial', label: 'Especial' },
+  { value: 'tuayyu', label: 'TuAyllú' },
+  { value: 'analisis', label: 'Análisis' },
+  { value: 'mundial2026', label: 'Mundial 2026' },
+  { value: 'politica', label: 'Política' },
+  { value: 'deportes', label: 'Deportes' },
+  { value: 'economia', label: 'Economía' },
+  { value: 'cultura', label: 'Cultura' },
+  { value: 'tecnologia', label: 'Tecnología' },
+  { value: 'internacional', label: 'Internacional' },
+  { value: 'sociedad', label: 'Sociedad' },
 ];
 
-interface Column {
-  type: string;
+interface Column { type: string; }
+
+interface BlockConfig {
+  destination?: string;
 }
 
 interface BlockTemplate {
@@ -44,10 +48,6 @@ interface BlockTemplate {
   columns: Column[];
 }
 
-interface BlockContent {
-  destination: string;
-}
-
 interface Block {
   id?: string;
   _id?: string;
@@ -55,15 +55,21 @@ interface Block {
   template: BlockTemplate | null;
   order: number;
   isVisible: boolean;
-  content: BlockContent[];
+  config?: BlockConfig;
+  content?: unknown[];
 }
 
 function getId(item: { id?: string; _id?: string }): string {
   return item.id || item._id || '';
 }
 
+function getDestLabel(val: string): string {
+  const found = DESTINATIONS.find(d => d.value === val?.toLowerCase());
+  return found ? found.label : (val ? val.charAt(0).toUpperCase() + val.slice(1) : 'General');
+}
+
 function getColTypeIcon(type: string) {
-  switch(type) {
+  switch (type) {
     case 'Multimedia': return <MonitorPlay className="w-5 h-5 text-blue-400" />;
     case 'Publicidad': return <Megaphone className="w-5 h-5 text-yellow-500" />;
     case 'Playlist de Videos': return <MonitorPlay className="w-5 h-5 text-purple-500" />;
@@ -74,29 +80,27 @@ function getColTypeIcon(type: string) {
 function getLayoutPreview(template: BlockTemplate | null) {
   if (!template) {
     return (
-      <div className="mt-3 rounded-lg bg-gray-100 p-3 flex items-center justify-center text-xs text-gray-400 h-16">
+      <div className="mt-2 rounded-lg bg-gray-100 p-3 flex items-center justify-center text-xs text-gray-400 h-14">
         Sin plantilla asignada
       </div>
     );
   }
   const cols = template.columns || [];
   const layout = template.layout || '';
-  
   if (layout === 'Full-width' || cols.length === 1) {
     return (
-      <div className="mt-3 rounded-lg bg-gray-100 p-3 flex items-center justify-center text-xs text-gray-500 font-medium h-16">
+      <div className="mt-2 rounded-lg bg-gray-100 p-3 flex items-center justify-center text-xs text-gray-500 font-medium h-14">
         {cols[0]?.type || 'Noticia'}
       </div>
     );
   }
-  
   if (layout.startsWith('Hero')) {
     return (
-      <div className="mt-3 flex gap-2">
-        <div className="flex-1 rounded-lg bg-gray-100 p-2 flex items-center justify-center text-xs text-gray-500 font-medium" style={{minHeight:'4rem'}}>
+      <div className="mt-2 flex gap-2">
+        <div className="flex-1 rounded-lg bg-gray-100 p-2 flex items-center justify-center text-xs text-gray-500 font-medium" style={{ minHeight: '3.5rem' }}>
           {cols[0]?.type || 'Noticia'}
         </div>
-        <div className="w-1/3 flex flex-col gap-2">
+        <div className="w-1/3 flex flex-col gap-1.5">
           {cols.slice(1).map((c, i) => (
             <div key={i} className="rounded-lg bg-gray-100 p-2 flex items-center justify-center text-xs text-gray-500 font-medium flex-1">
               {c.type}
@@ -106,11 +110,10 @@ function getLayoutPreview(template: BlockTemplate | null) {
       </div>
     );
   }
-  
   return (
-    <div className="mt-3 flex gap-2">
+    <div className="mt-2 flex gap-2">
       {cols.map((col, i) => (
-        <div key={i} className="flex-1 rounded-lg bg-gray-100 p-2 flex items-center justify-center text-xs text-gray-500 font-medium" style={{minHeight:'3.5rem'}}>
+        <div key={i} className="flex-1 rounded-lg bg-gray-100 p-2 flex items-center justify-center text-xs text-gray-500 font-medium" style={{ minHeight: '3rem' }}>
           {col.type}
         </div>
       ))}
@@ -119,18 +122,12 @@ function getLayoutPreview(template: BlockTemplate | null) {
 }
 
 function getLayoutIcon(layout: string) {
-  if (!layout || layout === 'Full-width') return <AlignLeft className="w-4 h-4 text-blue-700" />;
-  if (layout === '4 Cols') return <LayoutGrid className="w-4 h-4 text-blue-700" />;
-  if (layout.startsWith('Hero')) return <Columns2 className="w-4 h-4 text-blue-700" />;
-  return <Columns2 className="w-4 h-4 text-blue-700" />;
-}
-
-function getSmallLayoutIcon(layout: string) {
   if (!layout || layout === 'Full-width') return <AlignLeft className="w-5 h-5 text-blue-700" />;
   if (layout === '4 Cols') return <LayoutGrid className="w-5 h-5 text-blue-700" />;
   return <Columns2 className="w-5 h-5 text-blue-700" />;
 }
 
+// ---- Content Modal ----
 interface ContentModalProps {
   block: Block;
   onClose: () => void;
@@ -138,25 +135,23 @@ interface ContentModalProps {
 }
 
 function ContentModal({ block, onClose, onSave }: ContentModalProps) {
-  const [destination, setDestination] = useState(
-    block.content?.[0]?.destination || DESTINATIONS[0]
-  );
+  const currentDest = block.config?.destination || 'general';
+  const [destination, setDestination] = useState(currentDest);
   const cols = block.template?.columns || [];
 
   const getSlotLabel = (idx: number, total: number, layout: string) => {
     if (total === 1) return 'PRINCIPAL';
     if (layout?.startsWith('Hero')) {
-      if (idx === 0) return `PRINCIPAL (2/3)`;
+      if (idx === 0) return 'PRINCIPAL (2/3)';
       return `SECUNDARIO ${idx}`;
     }
-    if (idx === 0) return `PRINCIPAL`;
+    if (idx === 0) return 'PRINCIPAL';
     return `SECUNDARIO ${idx}`;
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl mx-4 overflow-hidden">
-        {/* Header */}
         <div className="px-6 pt-6 pb-4 flex items-start justify-between">
           <div>
             <h2 className="text-xl font-bold text-gray-900">Editor de Contenido de Instancia</h2>
@@ -168,75 +163,50 @@ function ContentModal({ block, onClose, onSave }: ContentModalProps) {
             <X className="w-5 h-5 text-gray-500" />
           </button>
         </div>
-
-        {/* Body */}
         <div className="px-6 pb-4 space-y-5">
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Destino del Contenido
-            </label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Destino del Contenido</label>
             <select
               value={destination}
               onChange={e => setDestination(e.target.value)}
-              className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white appearance-none"
-              style={{backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E\")", backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', paddingRight: '2.5rem'}}
+              className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
             >
-              {DESTINATIONS.map(d => <option key={d} value={d}>{d}</option>)}
+              {DESTINATIONS.map(d => (
+                <option key={d.value} value={d.value}>{d.label}</option>
+              ))}
             </select>
             <p className="text-xs text-gray-400 mt-1">
               Define de qué sección del diario se alimentará este bloque.
             </p>
           </div>
-
           {cols.length > 0 && (
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-3">
                 Previsualización y Asignación de Contenido
               </label>
               <div className="border border-gray-200 rounded-xl p-4 bg-gray-50">
-                <div
-                  className="grid gap-3"
-                  style={{
-                    gridTemplateColumns: cols.length <= 2
-                      ? `repeat(${cols.length}, 1fr)`
-                      : `repeat(${Math.min(cols.length, 3)}, 1fr)`,
-                  }}
-                >
-                  {cols.map((col, idx) => {
-                    const layout = block.template?.layout || '';
-                    const label = getSlotLabel(idx, cols.length, layout);
-                    return (
-                      <div
-                        key={idx}
-                        className="bg-white rounded-xl border border-gray-200 p-3 flex flex-col items-center gap-2 min-h-24"
-                      >
-                        <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider text-center">
-                          {label}
+                <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${Math.min(cols.length, 3)}, 1fr)` }}>
+                  {cols.map((col, idx) => (
+                    <div key={idx} className="bg-white rounded-xl border border-gray-200 p-3 flex flex-col items-center gap-2 min-h-24">
+                      <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider text-center">
+                        {getSlotLabel(idx, cols.length, block.template?.layout || '')}
+                      </span>
+                      <div className="flex-1 flex flex-col items-center justify-center gap-1">
+                        {getColTypeIcon(col.type)}
+                        <span className="text-xs font-medium text-gray-700 text-center">Contenido de {col.type}</span>
+                        <span className="text-[10px] text-blue-500 text-center">
+                          Desde Destino: "{getDestLabel(destination)}" ℹ️
                         </span>
-                        <div className="flex-1 flex flex-col items-center justify-center gap-1">
-                          {getColTypeIcon(col.type)}
-                          <span className="text-xs font-medium text-gray-700 text-center">
-                            Contenido de {col.type}
-                          </span>
-                          <span className="text-[10px] text-gray-400 text-center">
-                            Desde Destino: "{destination}" ℹ️
-                          </span>
-                        </div>
                       </div>
-                    );
-                  })}
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
           )}
         </div>
-
-        {/* Footer */}
         <div className="px-6 py-4 bg-gray-50 flex justify-end gap-3 border-t border-gray-100">
-          <button
-            onClick={onClose}
-            className="px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-xl transition-colors"
-          >
+          <button onClick={onClose} className="px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-xl transition-colors">
             Cancelar
           </button>
           <button
@@ -251,6 +221,7 @@ function ContentModal({ block, onClose, onSave }: ContentModalProps) {
   );
 }
 
+// ---- Main Page ----
 export default function LayoutPage() {
   const router = useRouter();
   const [blocks, setBlocks] = useState<Block[]>([]);
@@ -258,9 +229,15 @@ export default function LayoutPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [contentModal, setContentModal] = useState<Block | null>(null);
-  const [saving, setSaving] = useState<string | null>(null);
-  const dragItem = useRef<number | null>(null);
-  const dragOver = useRef<number | null>(null);
+  
+  // Drag state for block reorder (right panel)
+  const dragBlockIdx = useRef<number | null>(null);
+  const dragOverBlockIdx = useRef<number | null>(null);
+  
+  // Drag state for template-to-layout (left panel → right panel)
+  const dragTemplateId = useRef<string | null>(null);
+  const [dropTargetIdx, setDropTargetIdx] = useState<number | null>(null);
+  const [isDraggingTemplate, setIsDraggingTemplate] = useState(false);
 
   const fetchAll = async () => {
     setLoading(true);
@@ -283,21 +260,23 @@ export default function LayoutPage() {
 
   useEffect(() => { fetchAll(); }, []);
 
-  const addTemplateToLayout = async (tmpl: BlockTemplate) => {
-    const order = blocks.length + 1;
+  // Add template at a specific position (default: end)
+  const addTemplateAtPosition = async (tmpl: BlockTemplate, insertAfterIdx?: number) => {
+    const insertAt = insertAfterIdx !== undefined ? insertAfterIdx + 1 : blocks.length;
+    // Shift orders for blocks after insertion point
+    const newOrder = insertAt + 1;
     const body = {
       name: tmpl.name,
       template: getId(tmpl),
-      order,
+      order: newOrder,
       isVisible: true,
-      content: (tmpl.columns || [{ type: 'Noticia' }]).map(() => ({ destination: DESTINATIONS[0] })),
+      config: { destination: 'general' },
+      content: [],
     };
-    await fetch(API + '/blocks', {
-      method: 'POST',
-      headers: getHeaders(),
-      body: JSON.stringify(body),
-    });
-    fetchAll();
+    await fetch(API + '/blocks', { method: 'POST', headers: getHeaders(), body: JSON.stringify(body) });
+    // Reorder the blocks after insertion to keep order consistent
+    await fetchAll();
+    // Re-sort and fix orders if needed
   };
 
   const deleteBlock = async (block: Block) => {
@@ -306,47 +285,93 @@ export default function LayoutPage() {
     fetchAll();
   };
 
-  const handleDragStart = (idx: number) => { dragItem.current = idx; };
-  const handleDragEnter = (idx: number) => { dragOver.current = idx; };
+  const handleSaveContent = async (block: Block, destination: string) => {
+    await fetch(API + '/block/' + getId(block), {
+      method: 'PUT',
+      headers: getHeaders(),
+      body: JSON.stringify({ config: { destination } }),
+    });
+    fetchAll();
+  };
 
-  const handleDrop = async () => {
-    if (dragItem.current === null || dragOver.current === null) return;
-    if (dragItem.current === dragOver.current) { dragItem.current = null; dragOver.current = null; return; }
+  const handleDestinationChange = async (block: Block, destination: string) => {
+    await fetch(API + '/block/' + getId(block), {
+      method: 'PUT',
+      headers: getHeaders(),
+      body: JSON.stringify({ config: { destination } }),
+    });
+    fetchAll();
+  };
+
+  // ---- Block reorder drag (right panel) ----
+  const handleBlockDragStart = (idx: number) => {
+    if (isDraggingTemplate) return;
+    dragBlockIdx.current = idx;
+  };
+  const handleBlockDragEnter = (idx: number) => {
+    if (isDraggingTemplate) return;
+    dragOverBlockIdx.current = idx;
+  };
+  const handleBlockDrop = async () => {
+    if (isDraggingTemplate) return;
+    if (dragBlockIdx.current === null || dragOverBlockIdx.current === null) return;
+    if (dragBlockIdx.current === dragOverBlockIdx.current) {
+      dragBlockIdx.current = null; dragOverBlockIdx.current = null; return;
+    }
     const newBlocks = [...blocks];
-    const [removed] = newBlocks.splice(dragItem.current, 1);
-    newBlocks.splice(dragOver.current, 0, removed);
-    dragItem.current = null;
-    dragOver.current = null;
+    const [removed] = newBlocks.splice(dragBlockIdx.current, 1);
+    newBlocks.splice(dragOverBlockIdx.current, 0, removed);
+    dragBlockIdx.current = null; dragOverBlockIdx.current = null;
     setBlocks(newBlocks);
     for (let i = 0; i < newBlocks.length; i++) {
       await fetch(API + '/block/' + getId(newBlocks[i]), {
-        method: 'PUT',
-        headers: getHeaders(),
+        method: 'PUT', headers: getHeaders(),
         body: JSON.stringify({ order: i + 1 }),
       });
     }
   };
 
-  const handleSaveContent = async (block: Block, destination: string) => {
-    setSaving(getId(block));
-    const newContent = (block.template?.columns || [{ type: 'Noticia' }]).map(() => ({ destination }));
-    await fetch(API + '/block/' + getId(block), {
-      method: 'PUT',
-      headers: getHeaders(),
-      body: JSON.stringify({ content: newContent }),
-    });
-    setSaving(null);
-    fetchAll();
+  // ---- Template drag to preview (left panel → right panel) ----
+  const handleTemplateDragStart = (tmpl: BlockTemplate) => {
+    dragTemplateId.current = getId(tmpl);
+    setIsDraggingTemplate(true);
   };
-
-  const handleDestinationChange = async (block: Block, destination: string) => {
-    const newContent = (block.template?.columns || [{ type: 'Noticia' }]).map(() => ({ destination }));
-    await fetch(API + '/block/' + getId(block), {
-      method: 'PUT',
-      headers: getHeaders(),
-      body: JSON.stringify({ content: newContent }),
-    });
-    fetchAll();
+  const handleTemplateDragEnd = () => {
+    dragTemplateId.current = null;
+    setIsDraggingTemplate(false);
+    setDropTargetIdx(null);
+  };
+  
+  // Drop zone: before each block and after the last
+  const handleDropZoneDragOver = (e: React.DragEvent, idx: number) => {
+    if (!isDraggingTemplate) return;
+    e.preventDefault();
+    setDropTargetIdx(idx);
+  };
+  const handleDropZoneDrop = async (e: React.DragEvent, insertBeforeIdx: number) => {
+    e.preventDefault();
+    if (!isDraggingTemplate || !dragTemplateId.current) return;
+    const tmpl = templates.find(t => getId(t) === dragTemplateId.current);
+    if (!tmpl) return;
+    setDropTargetIdx(null);
+    setIsDraggingTemplate(false);
+    
+    // Insert before insertBeforeIdx → after (insertBeforeIdx - 1)
+    const insertAfterIdx = insertBeforeIdx - 1;
+    await addTemplateAtPosition(tmpl, insertAfterIdx >= 0 ? insertAfterIdx : undefined);
+  };
+  const handlePreviewDragOver = (e: React.DragEvent) => {
+    if (!isDraggingTemplate) return;
+    e.preventDefault();
+  };
+  const handlePreviewDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    if (!isDraggingTemplate || !dragTemplateId.current) return;
+    const tmpl = templates.find(t => getId(t) === dragTemplateId.current);
+    if (!tmpl) return;
+    setDropTargetIdx(null);
+    setIsDraggingTemplate(false);
+    await addTemplateAtPosition(tmpl);
   };
 
   const filteredTemplates = templates.filter(t =>
@@ -372,9 +397,8 @@ export default function LayoutPage() {
           </p>
         </div>
 
-        {/* Two-column layout */}
         <div className="flex gap-6 items-start">
-          {/* Left panel: Templates */}
+          {/* ---- Left panel: Templates ---- */}
           <div className="w-56 flex-shrink-0">
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
               <div className="p-4">
@@ -389,30 +413,29 @@ export default function LayoutPage() {
                   />
                 </div>
               </div>
-
-              {/* Template list with internal scroll */}
-              <div className="overflow-y-auto px-3 pb-3" style={{maxHeight: '60vh'}}>
+              <div className="overflow-y-auto px-3 pb-3" style={{ maxHeight: '60vh' }}>
                 <div className="space-y-1.5">
                   {filteredTemplates.map(t => {
                     const tid = getId(t);
                     return (
-                      <button
+                      <div
                         key={tid}
-                        onClick={() => addTemplateToLayout(t)}
-                        className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl border border-gray-150 bg-white hover:bg-blue-50 hover:border-blue-200 transition-colors group text-left"
+                        draggable
+                        onDragStart={() => handleTemplateDragStart(t)}
+                        onDragEnd={handleTemplateDragEnd}
+                        onClick={() => addTemplateAtPosition(t)}
+                        className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-gray-150 bg-white hover:bg-blue-50 hover:border-blue-200 transition-colors group cursor-grab active:cursor-grabbing select-none"
                       >
                         <div className="w-7 h-7 flex items-center justify-center flex-shrink-0">
-                          {getSmallLayoutIcon(t.layout)}
+                          {getLayoutIcon(t.layout)}
                         </div>
                         <span className="text-sm font-medium text-gray-800 flex-1 truncate">{t.name}</span>
                         <Pencil className="w-3.5 h-3.5 text-gray-400 group-hover:text-blue-500 flex-shrink-0" />
-                      </button>
+                      </div>
                     );
                   })}
                 </div>
               </div>
-
-              {/* Nueva Plantilla button */}
               <div className="p-3 border-t border-gray-100">
                 <button
                   onClick={() => router.push('/dashboard/blocks')}
@@ -425,83 +448,107 @@ export default function LayoutPage() {
             </div>
           </div>
 
-          {/* Right panel: Preview */}
+          {/* ---- Right panel: Preview ---- */}
           <div className="flex-1">
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
               <div className="p-5 border-b border-gray-100">
                 <h2 className="text-base font-bold text-gray-900">Previsualización de la Portada</h2>
+                {isDraggingTemplate && (
+                  <p className="text-xs text-blue-500 mt-1">Suelta la plantilla en la posición deseada</p>
+                )}
               </div>
-
               <div className="p-5">
-                {/* Dashed container */}
-                <div className="border-2 border-dashed border-gray-200 rounded-xl p-4 bg-gray-50/50 min-h-64">
+                <div
+                  className="border-2 border-dashed border-gray-200 rounded-xl p-4 bg-gray-50/50 min-h-64"
+                  onDragOver={handlePreviewDragOver}
+                  onDrop={handlePreviewDrop}
+                >
                   {blocks.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+                    <div
+                      className={`flex flex-col items-center justify-center py-16 text-gray-400 rounded-xl transition-colors ${isDraggingTemplate ? 'bg-blue-50 border-2 border-dashed border-blue-300' : ''}`}
+                      onDragOver={e => { if (isDraggingTemplate) e.preventDefault(); }}
+                      onDrop={handlePreviewDrop}
+                    >
                       <FileText className="w-12 h-12 mb-3 text-gray-300" />
-                      <p className="font-medium text-gray-500">No hay bloques en la portada</p>
-                      <p className="text-sm">Haz clic en una plantilla para agregarla</p>
+                      <p className="font-medium text-gray-500">
+                        {isDraggingTemplate ? 'Suelta aquí para agregar' : 'No hay bloques en la portada'}
+                      </p>
+                      <p className="text-sm">
+                        {isDraggingTemplate ? '' : 'Haz clic o arrastra una plantilla para agregarla'}
+                      </p>
                     </div>
                   ) : (
-                    <div className="space-y-3">
+                    <div className="space-y-1">
+                      {/* Drop zone BEFORE first block */}
+                      <div
+                        className={`h-2 rounded-lg transition-all duration-150 ${dropTargetIdx === 0 && isDraggingTemplate ? 'h-10 bg-blue-100 border-2 border-dashed border-blue-400 flex items-center justify-center' : ''}`}
+                        onDragOver={e => handleDropZoneDragOver(e, 0)}
+                        onDrop={e => handleDropZoneDrop(e, 0)}
+                      >
+                        {dropTargetIdx === 0 && isDraggingTemplate && (
+                          <span className="text-xs text-blue-500 font-medium">Insertar aquí</span>
+                        )}
+                      </div>
+
                       {blocks.map((block, idx) => {
                         const bid = getId(block);
-                        const currentDest = block.content?.[0]?.destination || DESTINATIONS[0];
+                        const currentDest = block.config?.destination || 'general';
                         return (
-                          <div
-                            key={bid}
-                            draggable
-                            onDragStart={() => handleDragStart(idx)}
-                            onDragEnter={() => handleDragEnter(idx)}
-                            onDragEnd={handleDrop}
-                            onDragOver={e => e.preventDefault()}
-                            className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden"
-                          >
-                            {/* Block header row */}
-                            <div className="flex items-center gap-2 px-3 py-3">
-                              {/* Drag handle */}
-                              <div className="cursor-grab active:cursor-grabbing p-1 -ml-1 flex-shrink-0">
-                                <GripVertical className="w-5 h-5 text-gray-400" />
-                              </div>
-
-                              {/* Layout icon */}
-                              <div className="w-8 h-8 flex items-center justify-center bg-gray-100 rounded-lg flex-shrink-0">
-                                {block.template ? getSmallLayoutIcon(block.template.layout) : <FileText className="w-4 h-4 text-gray-400" />}
-                              </div>
-
-                              {/* Destination dropdown */}
-                              <div className="flex-1">
-                                <select
-                                  value={currentDest}
-                                  onChange={e => handleDestinationChange(block, e.target.value)}
-                                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white appearance-none font-medium"
-                                  style={{backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E\")", backgroundRepeat: 'no-repeat', backgroundPosition: 'right 10px center', paddingRight: '2rem'}}
+                          <div key={bid}>
+                            <div
+                              draggable={!isDraggingTemplate}
+                              onDragStart={() => handleBlockDragStart(idx)}
+                              onDragEnter={() => handleBlockDragEnter(idx)}
+                              onDragEnd={handleBlockDrop}
+                              onDragOver={e => { if (!isDraggingTemplate) e.preventDefault(); }}
+                              className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden"
+                            >
+                              <div className="flex items-center gap-2 px-3 py-3">
+                                <div className={`cursor-grab active:cursor-grabbing p-1 -ml-1 flex-shrink-0 ${isDraggingTemplate ? 'opacity-30' : ''}`}>
+                                  <GripVertical className="w-5 h-5 text-gray-400" />
+                                </div>
+                                <div className="w-8 h-8 flex items-center justify-center bg-gray-100 rounded-lg flex-shrink-0">
+                                  {block.template ? getLayoutIcon(block.template.layout) : <FileText className="w-4 h-4 text-gray-400" />}
+                                </div>
+                                <div className="flex-1">
+                                  <select
+                                    value={currentDest}
+                                    onChange={e => handleDestinationChange(block, e.target.value)}
+                                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white font-medium"
+                                  >
+                                    {DESTINATIONS.map(d => (
+                                      <option key={d.value} value={d.value}>{d.label}</option>
+                                    ))}
+                                  </select>
+                                </div>
+                                <button
+                                  onClick={() => setContentModal(block)}
+                                  className="flex items-center gap-1.5 px-3 py-2 border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors flex-shrink-0"
                                 >
-                                  {DESTINATIONS.map(d => <option key={d} value={d}>{d}</option>)}
-                                </select>
+                                  <Pencil className="w-3.5 h-3.5" />
+                                  Cont.
+                                </button>
+                                <button
+                                  onClick={() => deleteBlock(block)}
+                                  className="p-2 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0"
+                                >
+                                  <Trash2 className="w-4 h-4 text-gray-400 hover:text-red-500" />
+                                </button>
                               </div>
-
-                              {/* Cont. button */}
-                              <button
-                                onClick={() => setContentModal(block)}
-                                className="flex items-center gap-1.5 px-3 py-2 border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors flex-shrink-0"
-                              >
-                                <Pencil className="w-3.5 h-3.5" />
-                                Cont.
-                              </button>
-
-                              {/* Delete button */}
-                              <button
-                                onClick={() => deleteBlock(block)}
-                                className="p-2 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0"
-                                title="Eliminar bloque"
-                              >
-                                <Trash2 className="w-4 h-4 text-gray-400 hover:text-red-500" />
-                              </button>
+                              <div className="px-3 pb-3">
+                                {getLayoutPreview(block.template)}
+                              </div>
                             </div>
 
-                            {/* Layout visual preview */}
-                            <div className="px-3 pb-3">
-                              {getLayoutPreview(block.template)}
+                            {/* Drop zone AFTER this block */}
+                            <div
+                              className={`h-2 rounded-lg transition-all duration-150 mt-1 ${dropTargetIdx === idx + 1 && isDraggingTemplate ? 'h-10 bg-blue-100 border-2 border-dashed border-blue-400 flex items-center justify-center' : ''}`}
+                              onDragOver={e => handleDropZoneDragOver(e, idx + 1)}
+                              onDrop={e => handleDropZoneDrop(e, idx + 1)}
+                            >
+                              {dropTargetIdx === idx + 1 && isDraggingTemplate && (
+                                <span className="text-xs text-blue-500 font-medium">Insertar aquí</span>
+                              )}
                             </div>
                           </div>
                         );
@@ -515,7 +562,6 @@ export default function LayoutPage() {
         </div>
       </div>
 
-      {/* Content Modal */}
       {contentModal && (
         <ContentModal
           block={contentModal}
