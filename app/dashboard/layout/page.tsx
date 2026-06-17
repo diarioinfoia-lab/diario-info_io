@@ -20,16 +20,46 @@ function getHeaders() {
 
 // Destinos: coinciden exactamente con el formulario de Noticias
 const DESTINATIONS = [
-  { value: 'general', label: 'General' },
-  { value: 'analisis', label: 'Analisis' },
-  { value: 'especial', label: 'Especial' },
-  { value: 'ultimomomento', label: 'Ultimo Momento' },
-  { value: 'tuayllu', label: 'TuAyllu' },
-  { value: 'mundial2026', label: 'Argentina en el Mundial 2026' },
-  { value: 'charlycarabajal', label: 'La Columna de Charly Carabajal' },
+  { value: 'general',            label: 'General' },
+  { value: 'analisis',           label: 'Analisis' },
+  { value: 'especial',           label: 'Especial' },
+  { value: 'ultimomomento',      label: 'Ultimo Momento' },
+  { value: 'tuayllu',            label: 'TuAyllu' },
+  { value: 'mundial2026',        label: 'Argentina en el Mundial 2026' },
+  { value: 'charlycarabajal',    label: 'La Columna de Charly Carabajal' },
   { value: 'juanmanuelmartinez', label: 'La Columna de Juan Manuel Martinez' },
-  { value: 'hockey', label: 'Federacion Santiaguena de Hockey' },
+  { value: 'hockey',             label: 'Federacion Santiaguena de Hockey' },
 ];
+
+// Colores de fondo por destino - replicados del original ia.diarioinfo.com
+const DEST_COLORS: Record<string, string> = {
+  general:            'bg-white border-gray-200 text-gray-900',
+  analisis:           'bg-gradient-to-br from-blue-500 to-indigo-700 border-blue-700 text-white',
+  especial:           'bg-gradient-to-br from-purple-500 to-fuchsia-700 border-purple-700 text-white',
+  ultimomomento:      'bg-gradient-to-br from-red-500 to-red-700 border-red-700 text-white',
+  tuayllu:            'bg-gradient-to-br from-orange-500 to-orange-600 border-orange-600 text-white',
+  mundial2026:        'bg-gradient-to-r from-[#74ACDF] via-white to-[#74ACDF] border-[#74ACDF] text-[#003566]',
+  charlycarabajal:    'bg-gradient-to-br from-[#B87333] to-[#A45A52] border-[#B87333] text-white',
+  juanmanuelmartinez: 'bg-gradient-to-br from-[#005B96] to-[#4E595D] border-[#005B96] text-white',
+  hockey:             'bg-gradient-to-br from-[#163E85] to-[#B71C2B] border-[#C79A1B] text-white',
+};
+
+// Icon/text accent color for each destination (for the select icon)
+const DEST_ICON_COLORS: Record<string, string> = {
+  general:            'text-gray-500',
+  analisis:           'text-blue-300',
+  especial:           'text-purple-300',
+  ultimomomento:      'text-red-300',
+  tuayllu:            'text-orange-300',
+  mundial2026:        'text-[#74ACDF]',
+  charlycarabajal:    'text-[#B87333]',
+  juanmanuelmartinez: 'text-[#005B96]',
+  hockey:             'text-[#163E85]',
+};
+
+function getDestColorClass(dest: string): string {
+  return DEST_COLORS[dest?.toLowerCase()] || DEST_COLORS.general;
+}
 
 interface Column { type: string; }
 
@@ -75,10 +105,13 @@ function getColTypeIcon(type: string) {
   }
 }
 
-function getLayoutPreview(template: BlockTemplate | null) {
+function getLayoutPreview(template: BlockTemplate | null, isColored: boolean) {
+  const textClass = isColored ? 'text-white/70' : 'text-gray-500';
+  const bgClass = isColored ? 'bg-white/20' : 'bg-gray-100';
+  
   if (!template) {
     return (
-      <div className="mt-2 rounded-lg bg-gray-100 p-3 flex items-center justify-center text-xs text-gray-400 h-14">
+      <div className={`mt-2 rounded-lg ${bgClass} p-3 flex items-center justify-center text-xs ${textClass} h-14`}>
         Sin plantilla asignada
       </div>
     );
@@ -87,7 +120,7 @@ function getLayoutPreview(template: BlockTemplate | null) {
   const layout = template.layout || '';
   if (layout === 'Full-width' || cols.length === 1) {
     return (
-      <div className="mt-2 rounded-lg bg-gray-100 p-3 flex items-center justify-center text-xs text-gray-500 font-medium h-14">
+      <div className={`mt-2 rounded-lg ${bgClass} p-3 flex items-center justify-center text-xs ${textClass} font-medium h-14`}>
         {cols[0]?.type || 'Noticia'}
       </div>
     );
@@ -95,12 +128,12 @@ function getLayoutPreview(template: BlockTemplate | null) {
   if (layout.startsWith('Hero')) {
     return (
       <div className="mt-2 flex gap-2">
-        <div className="flex-1 rounded-lg bg-gray-100 p-2 flex items-center justify-center text-xs text-gray-500 font-medium" style={{ minHeight: '3.5rem' }}>
+        <div className={`flex-1 rounded-lg ${bgClass} p-2 flex items-center justify-center text-xs ${textClass} font-medium`} style={{ minHeight: '3.5rem' }}>
           {cols[0]?.type || 'Noticia'}
         </div>
         <div className="w-1/3 flex flex-col gap-1.5">
           {cols.slice(1).map((c, i) => (
-            <div key={i} className="rounded-lg bg-gray-100 p-2 flex items-center justify-center text-xs text-gray-500 font-medium flex-1">
+            <div key={i} className={`rounded-lg ${bgClass} p-2 flex items-center justify-center text-xs ${textClass} font-medium flex-1`}>
               {c.type}
             </div>
           ))}
@@ -111,7 +144,7 @@ function getLayoutPreview(template: BlockTemplate | null) {
   return (
     <div className="mt-2 flex gap-2">
       {cols.map((col, i) => (
-        <div key={i} className="flex-1 rounded-lg bg-gray-100 p-2 flex items-center justify-center text-xs text-gray-500 font-medium" style={{ minHeight: '3rem' }}>
+        <div key={i} className={`flex-1 rounded-lg ${bgClass} p-2 flex items-center justify-center text-xs ${textClass} font-medium`} style={{ minHeight: '3rem' }}>
           {col.type}
         </div>
       ))}
@@ -263,8 +296,6 @@ export default function LayoutPage() {
   // Add template at a specific insert position (insertAtIdx = index to insert BEFORE)
   const addTemplateAtPosition = async (tmpl: BlockTemplate, insertAtIdx?: number) => {
     const posIdx = insertAtIdx !== undefined ? insertAtIdx : blocks.length;
-    // We assign order = posIdx + 1, and shift all blocks at that position upward
-    // First, shift existing blocks to make room
     const blocksToShift = blocks.slice(posIdx);
     for (let i = 0; i < blocksToShift.length; i++) {
       await fetch(API + '/block/' + getId(blocksToShift[i]), {
@@ -313,10 +344,8 @@ export default function LayoutPage() {
     setHasPendingChanges(true);
   };
 
-  // Save all changes to live portada
   const handleSaveAll = async () => {
     setSaving(true);
-    // Re-save all block orders to ensure consistency
     for (let i = 0; i < blocks.length; i++) {
       await fetch(API + '/block/' + getId(blocks[i]), {
         method: 'PUT',
@@ -369,7 +398,6 @@ export default function LayoutPage() {
     setDropTargetIdx(null);
   };
 
-  // Drop zone: before each block and after the last
   const handleDropZoneDragOver = (e: React.DragEvent, idx: number) => {
     if (!isDraggingTemplate) return;
     e.preventDefault();
@@ -379,7 +407,7 @@ export default function LayoutPage() {
 
   const handleDropZoneDrop = async (e: React.DragEvent, insertAtIdx: number) => {
     e.preventDefault();
-    e.stopPropagation(); // Prevent bubbling to parent onDrop (avoid duplicates)
+    e.stopPropagation();
     if (!isDraggingTemplate || !dragTemplateId.current) return;
     const tmpl = templates.find(t => getId(t) === dragTemplateId.current);
     if (!tmpl) return;
@@ -395,7 +423,6 @@ export default function LayoutPage() {
   };
 
   const handlePreviewDrop = async (e: React.DragEvent) => {
-    // Only handle if no drop zone handled it (e.g. empty portada)
     e.preventDefault();
     if (!isDraggingTemplate || !dragTemplateId.current) return;
     const tmpl = templates.find(t => getId(t) === dragTemplateId.current);
@@ -443,7 +470,7 @@ export default function LayoutPage() {
 
         {hasPendingChanges && (
           <div className="mb-4 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-700 flex items-center gap-2">
-            <span className="font-semibold">Cambios pendientes:</span> Los cambios realizados solo se publicaran en el diario cuando hagas clic en "Publicar Portada". La portada en vivo no se ha modificado aun.
+            <span className="font-semibold">Cambios pendientes:</span> Los cambios se publicaran en el diario cuando hagas clic en "Publicar Portada". La portada en vivo no se ha modificado aun.
           </div>
         )}
 
@@ -542,7 +569,9 @@ export default function LayoutPage() {
 
                       {blocks.map((block, idx) => {
                         const bid = getId(block);
-                        const currentDest = block.config?.destination || 'general';
+                        const currentDest = (block.config?.destination || 'general').toLowerCase();
+                        const colorClass = getDestColorClass(currentDest);
+                        const isColored = currentDest !== 'general';
                         return (
                           <div key={bid}>
                             <div
@@ -551,20 +580,24 @@ export default function LayoutPage() {
                               onDragEnter={() => handleBlockDragEnter(idx)}
                               onDragEnd={handleBlockDrop}
                               onDragOver={e => { if (!isDraggingTemplate) e.preventDefault(); }}
-                              className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden"
+                              className={`rounded-xl border shadow-sm overflow-hidden transition-all duration-200 ${colorClass}`}
                             >
                               <div className="flex items-center gap-2 px-3 py-3">
                                 <div className={`cursor-grab active:cursor-grabbing p-1 -ml-1 flex-shrink-0 ${isDraggingTemplate ? 'opacity-30' : ''}`}>
-                                  <GripVertical className="w-5 h-5 text-gray-400" />
+                                  <GripVertical className={`w-5 h-5 ${isColored ? 'text-white/60' : 'text-gray-400'}`} />
                                 </div>
-                                <div className="w-8 h-8 flex items-center justify-center bg-gray-100 rounded-lg flex-shrink-0">
-                                  {block.template ? getLayoutIcon(block.template.layout) : <FileText className="w-4 h-4 text-gray-400" />}
+                                <div className={`w-8 h-8 flex items-center justify-center rounded-lg flex-shrink-0 ${isColored ? 'bg-white/20' : 'bg-gray-100'}`}>
+                                  {block.template ? (
+                                    isColored
+                                      ? <Columns2 className="w-4 h-4 text-white" />
+                                      : getLayoutIcon(block.template.layout)
+                                  ) : <FileText className={`w-4 h-4 ${isColored ? 'text-white' : 'text-gray-400'}`} />}
                                 </div>
                                 <div className="flex-1">
                                   <select
                                     value={currentDest}
                                     onChange={e => handleDestinationChange(block, e.target.value)}
-                                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white font-medium"
+                                    className={`w-full border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-white/50 font-medium ${isColored ? 'bg-white/20 border-white/30 text-white placeholder-white/70' : 'bg-white border-gray-200 text-gray-900'}`}
                                   >
                                     {DESTINATIONS.map(d => (
                                       <option key={d.value} value={d.value}>{d.label}</option>
@@ -573,20 +606,20 @@ export default function LayoutPage() {
                                 </div>
                                 <button
                                   onClick={() => setContentModal(block)}
-                                  className="flex items-center gap-1.5 px-3 py-2 border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors flex-shrink-0"
+                                  className={`flex items-center gap-1.5 px-3 py-2 border rounded-xl text-sm font-medium transition-colors flex-shrink-0 ${isColored ? 'border-white/30 text-white hover:bg-white/20' : 'border-gray-200 text-gray-700 hover:bg-gray-50'}`}
                                 >
                                   <Pencil className="w-3.5 h-3.5" />
                                   Cont.
                                 </button>
                                 <button
                                   onClick={() => deleteBlock(block)}
-                                  className="p-2 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0"
+                                  className={`p-2 rounded-lg transition-colors flex-shrink-0 ${isColored ? 'hover:bg-white/20' : 'hover:bg-red-50'}`}
                                 >
-                                  <Trash2 className="w-4 h-4 text-gray-400 hover:text-red-500" />
+                                  <Trash2 className={`w-4 h-4 ${isColored ? 'text-white/70 hover:text-white' : 'text-gray-400 hover:text-red-500'}`} />
                                 </button>
                               </div>
                               <div className="px-3 pb-3">
-                                {getLayoutPreview(block.template)}
+                                {getLayoutPreview(block.template, isColored)}
                               </div>
                             </div>
 
