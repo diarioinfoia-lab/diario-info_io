@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Search, Plus, Trash2, MoreVertical, FileText, Bold, Italic, Underline, List, ListOrdered, Link2, Image, Video, Sparkles, Upload, X, RefreshCw, ImageIcon } from 'lucide-react';
+import { Search, Plus, Trash2, MoreVertical, FileText, Bold, Italic, Underline, List, ListOrdered, Link2, Image, Video, Sparkles, Upload, X, RefreshCw, ImageIcon, Link } from 'lucide-react';
 import { getArticles, createArticle, updateArticle, deleteArticle, getCategories } from '@/lib/api';
 
 const API = 'https://api2.diarioinfo.com';
@@ -14,8 +14,6 @@ interface MediaFile {
   thumbnailUrl?: string;
   mimeType?: string;
   size?: number;
-  width?: number;
-  height?: number;
 }
 interface Article {
   id: string;
@@ -151,10 +149,20 @@ function MediaPickerModal({
   onSelect: (url: string) => void;
   onClose: () => void;
 }) {
+  const [tab, setTab] = useState<'gallery' | 'url' | 'upload'>('gallery');
   const [files, setFiles] = useState<MediaFile[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
+  const [urlInput, setUrlInput] = useState('');
+  const [urlPreview, setUrlPreview] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const getFullUrl = (url: string) => {
+    if (!url) return '';
+    if (url.startsWith('http')) return url;
+    return `${API}${url}`;
+  };
 
   const loadFiles = async () => {
     setLoading(true);
@@ -176,34 +184,54 @@ function MediaPickerModal({
     const file = e.target.files?.[0];
     if (!file) return;
     setUploading(true);
+    setUploadError('');
     try {
       const token = typeof window !== 'undefined' ? localStorage.getItem('token') : '';
       const formData = new FormData();
       formData.append('file', file);
-      const r = await fetch(`${API}/files`, {
+      const r = await fetch(`${API}/files/upload`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
       });
-      const d = await r.json();
-      if (d.file || d.fileUrl) {
+      if (r.ok) {
+        const d = await r.json();
+        const url = d.file?.fileUrl || d.fileUrl || d.url || '';
+        if (url) {
+          onSelect(getFullUrl(url));
+          onClose();
+          return;
+        }
         await loadFiles();
+        setTab('gallery');
+      } else {
+        const text = await r.text();
+        const msg = text.replace(/<[^>]+>/g,' ').replace(/s+/g,' ').trim().substring(0,120);
+        setUploadError('Error del servidor: ' + msg);
       }
+    } catch (err) {
+      setUploadError('Error de conexion al subir archivo.');
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
-  const getFullUrl = (url: string) => {
-    if (!url) return '';
-    if (url.startsWith('http')) return url;
-    return `${API}${url}`;
+  const handleUrlConfirm = () => {
+    const url = urlInput.trim();
+    if (!url) return;
+    if (!url.startsWith('http')) {
+      setUrlPreview('');
+      return;
+    }
+    onSelect(url);
+    onClose();
   };
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4">
       <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-3xl max-h-[85vh] flex flex-col">
+        {/* Header */}
         <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
           <div>
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Seleccionar Archivo</h2>
@@ -211,57 +239,131 @@ function MediaPickerModal({
           </div>
           <button onClick={onClose} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400"><X size={18} /></button>
         </div>
-        <div className="px-6 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center gap-3">
-          <label className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg text-sm text-gray-700 dark:text-gray-300 cursor-pointer font-medium transition-colors">
-            <Upload size={15} />
-            {uploading ? 'Cargando...' : 'Cargar archivo'}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handleUpload}
-              disabled={uploading}
-            />
-          </label>
-          <button
-            onClick={loadFiles}
-            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 transition-colors"
-            title="Refrescar"
-          >
-            <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
-          </button>
+
+        {/* Tabs */}
+        <div className="px-6 pt-3 border-b border-gray-100 dark:border-gray-800 flex gap-4">
+          {(['gallery','url','upload'] as const).map((t) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={`pb-3 text-sm font-medium border-b-2 transition-colors ${tab === t ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+            >
+              {t === 'gallery' ? 'Galeria' : t === 'url' ? 'URL externa' : 'Subir archivo'}
+            </button>
+          ))}
         </div>
+
+        {/* Content */}
         <div className="overflow-y-auto flex-1 p-4">
-          {loading ? (
-            <div className="flex items-center justify-center py-16">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500" />
-            </div>
-          ) : files.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-gray-400">
-              <ImageIcon size={48} className="mb-3 opacity-30" />
-              <p className="text-sm">No hay archivos. Carga el primero.</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-4 gap-3">
-              {files.map((file) => (
-                <button
-                  key={file.id || file.fileName}
-                  onClick={() => { onSelect(getFullUrl(file.fileUrl)); onClose(); }}
-                  className="relative aspect-video rounded-lg overflow-hidden border-2 border-transparent hover:border-blue-500 transition-all group bg-gray-100 dark:bg-gray-800"
-                  title={file.originalName || file.fileName}
-                >
-                  <img
-                    src={getFullUrl(file.thumbnailUrl || file.fileUrl)}
-                    alt={file.originalName || file.fileName}
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src = getFullUrl(file.fileUrl);
-                    }}
-                  />
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all" />
+          {/* Gallery tab */}
+          {tab === 'gallery' && (
+            <div>
+              <div className="flex justify-end mb-3">
+                <button onClick={loadFiles} className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-700 p-1.5 rounded hover:bg-gray-100">
+                  <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
+                  Actualizar
                 </button>
-              ))}
+              </div>
+              {loading ? (
+                <div className="flex items-center justify-center py-16">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500" />
+                </div>
+              ) : files.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-gray-400">
+                  <ImageIcon size={48} className="mb-3 opacity-30" />
+                  <p className="text-sm font-medium">No hay archivos en la galeria</p>
+                  <p className="text-xs mt-1 text-gray-400">Usa la pestana "Subir archivo" para agregar imagenes.</p>
+                  <button onClick={() => setTab('upload')} className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg">
+                    Subir archivo
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-4 gap-3">
+                  {files.map((file) => (
+                    <button
+                      key={file.id || file.fileName}
+                      onClick={() => { onSelect(getFullUrl(file.fileUrl)); onClose(); }}
+                      className="relative aspect-video rounded-lg overflow-hidden border-2 border-transparent hover:border-blue-500 transition-all group bg-gray-100 dark:bg-gray-800"
+                      title={file.originalName || file.fileName}
+                    >
+                      <img
+                        src={getFullUrl(file.thumbnailUrl || file.fileUrl)}
+                        alt={file.originalName || file.fileName}
+                        className="w-full h-full object-cover"
+                        onError={(e) => { (e.target as HTMLImageElement).src = getFullUrl(file.fileUrl); }}
+                      />
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all" />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* URL tab */}
+          {tab === 'url' && (
+            <div className="max-w-lg mx-auto py-4">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                URL de la imagen
+              </label>
+              <input
+                type="url"
+                value={urlInput}
+                onChange={(e) => { setUrlInput(e.target.value); setUrlPreview(e.target.value); }}
+                placeholder="https://ejemplo.com/imagen.jpg"
+                className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:border-blue-400 mb-3"
+                onKeyDown={(e) => e.key === 'Enter' && handleUrlConfirm()}
+              />
+              {urlPreview && urlPreview.startsWith('http') && (
+                <div className="mb-3 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
+                  <img
+                    src={urlPreview}
+                    alt="preview"
+                    className="w-full max-h-48 object-contain bg-gray-50"
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                  />
+                </div>
+              )}
+              <button
+                onClick={handleUrlConfirm}
+                disabled={!urlInput.trim().startsWith('http')}
+                className="w-full py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white text-sm font-medium rounded-lg transition-colors"
+              >
+                Usar esta imagen
+              </button>
+            </div>
+          )}
+
+          {/* Upload tab */}
+          {tab === 'upload' && (
+            <div className="max-w-lg mx-auto py-4">
+              {uploadError && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+                  {uploadError}
+                </div>
+              )}
+              <label className={`flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-xl cursor-pointer transition-colors ${uploading ? 'border-blue-300 bg-blue-50' : 'border-gray-300 hover:border-blue-400 hover:bg-blue-50/50'}`}>
+                {uploading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mb-3" />
+                    <p className="text-sm text-blue-600 font-medium">Subiendo...</p>
+                  </>
+                ) : (
+                  <>
+                    <Upload size={32} className="text-gray-400 mb-3" />
+                    <p className="text-sm font-medium text-gray-600">Haz clic para seleccionar una imagen</p>
+                    <p className="text-xs text-gray-400 mt-1">JPG, PNG, GIF, WebP</p>
+                  </>
+                )}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleUpload}
+                  disabled={uploading}
+                />
+              </label>
             </div>
           )}
         </div>
@@ -280,7 +382,6 @@ export default function ArticlesPage() {
   const [showCategoryMenu, setShowCategoryMenu] = useState(false);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
-  // Media picker state: used for both featured image AND body image insertion
   const [showMediaPicker, setShowMediaPicker] = useState(false);
   const [mediaPickerCallback, setMediaPickerCallback] = useState<((url: string) => void) | null>(null);
   const [editTarget, setEditTarget] = useState<Article | null>(null);
@@ -326,7 +427,6 @@ export default function ArticlesPage() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  // Opens media picker: used for featured image (direct setter) OR for body insertion (callback)
   const openMediaPickerFor = (cb: (url: string) => void) => {
     setMediaPickerCallback(() => cb);
     setShowMediaPicker(true);
@@ -462,12 +562,10 @@ export default function ArticlesPage() {
         </div>
         <div className="flex items-center gap-2">
           <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm hover:bg-gray-50 dark:hover:bg-gray-800">
-            <Upload size={15} />
-            Importar Noticia
+            <Upload size={15} />Importar Noticia
           </button>
           <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium text-sm">
-            <Plus size={15} />
-            Nueva Noticia
+            <Plus size={15} />Nueva Noticia
           </button>
         </div>
       </div>
@@ -500,8 +598,7 @@ export default function ArticlesPage() {
               <button onClick={() => { setFilterCategory(''); setShowCategoryMenu(false); }} className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-800">Todas</button>
               {categories.map(c => (
                 <button key={c.id} onClick={() => { setFilterCategory(c.id); setShowCategoryMenu(false); }} className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-800 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full" style={{backgroundColor: c.color || '#6b7280'}} />
-                  {c.name}
+                  <span className="w-2 h-2 rounded-full" style={{backgroundColor: c.color || '#6b7280'}} />{c.name}
                 </button>
               ))}
             </div>
@@ -555,7 +652,7 @@ export default function ArticlesPage() {
       {(showStatusMenu || showCategoryMenu || openMenu) && (
         <div className="fixed inset-0 z-10" onClick={() => { setShowStatusMenu(false); setShowCategoryMenu(false); setOpenMenu(null); }} />
       )}
-      {/* Media Picker Modal - shared for featured image and body image insertion */}
+
       {showMediaPicker && (
         <MediaPickerModal
           onSelect={handleMediaSelect}
@@ -563,7 +660,6 @@ export default function ArticlesPage() {
         />
       )}
 
-      {/* Create/Edit Modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] flex flex-col">
@@ -581,7 +677,6 @@ export default function ArticlesPage() {
             </div>
 
             <div className="overflow-y-auto flex-1 px-6 py-5 space-y-6">
-              {/* Section 1: Contenido Principal */}
               <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4 space-y-4">
                 <h3 className="font-semibold text-gray-800 dark:text-gray-200 text-sm">Contenido Principal</h3>
                 <div>
@@ -596,8 +691,6 @@ export default function ArticlesPage() {
                   <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Descripcion corta</label>
                   <textarea value={fDesc} onChange={e => setFDesc(e.target.value)} placeholder="Un resumen atractivo para listados y SEO" rows={2} className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:border-blue-400 resize-none" />
                 </div>
-
-                {/* Featured Image */}
                 <div>
                   <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Imagen Principal <span className="text-red-400">*</span></label>
                   {fFeaturedImage ? (
@@ -611,8 +704,7 @@ export default function ArticlesPage() {
                       {hoveringImage && (
                         <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
                           <span className="bg-white/90 text-gray-800 text-sm font-medium px-4 py-2 rounded-full flex items-center gap-2">
-                            <Image size={15} />
-                            Cambiar Imagen
+                            <Image size={15} />Cambiar Imagen
                           </span>
                         </div>
                       )}
@@ -624,11 +716,7 @@ export default function ArticlesPage() {
                         <p className="text-sm font-medium text-gray-500">Anade una imagen al cuerpo</p>
                         <p className="text-xs text-gray-400 mt-1">La primera imagen que agregues se mostrara aqui como la principal.</p>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => openMediaPickerFor((url) => setFFeaturedImage(url))}
-                        className="px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-white dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400 transition-colors bg-white/70 dark:bg-gray-900/50"
-                      >
+                      <button type="button" onClick={() => openMediaPickerFor((url) => setFFeaturedImage(url))} className="px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-white dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400 transition-colors bg-white/70 dark:bg-gray-900/50">
                         Seleccionar Manualmente
                       </button>
                     </div>
@@ -636,17 +724,11 @@ export default function ArticlesPage() {
                 </div>
               </div>
 
-              {/* Section 2: Cuerpo */}
               <div className="space-y-2">
                 <h3 className="font-semibold text-gray-800 dark:text-gray-200 text-sm">Cuerpo de la Noticia</h3>
-                <RichTextEditor
-                  value={fContent}
-                  onChange={setFContent}
-                  onOpenMediaPicker={openMediaPickerFor}
-                />
+                <RichTextEditor value={fContent} onChange={setFContent} onOpenMediaPicker={openMediaPickerFor} />
               </div>
 
-              {/* Section 3: Detalles */}
               <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4 space-y-4">
                 <h3 className="font-semibold text-gray-800 dark:text-gray-200 text-sm">Detalles de Publicacion</h3>
                 <div className="grid grid-cols-2 gap-4">
@@ -674,7 +756,6 @@ export default function ArticlesPage() {
                 </div>
               </div>
 
-              {/* Section 4: SEO */}
               <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4 space-y-4">
                 <h3 className="font-semibold text-gray-800 dark:text-gray-200 text-sm">Jerarquia y SEO</h3>
                 <div className="grid grid-cols-2 gap-4">
