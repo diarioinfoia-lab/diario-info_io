@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
-import { Search, GripVertical, Edit2, Trash2, X, Plus, Save, AlignLeft, LayoutGrid, LayoutTemplate, Columns, ChevronDown, Eye, EyeOff } from 'lucide-react';
+import { Search, GripVertical, Edit2, Trash2, X, Plus, AlignLeft, LayoutGrid, LayoutTemplate, Columns2, Eye, EyeOff } from 'lucide-react';
 
 const API = 'https://api2.diarioinfo.com';
 
@@ -31,7 +31,7 @@ function layoutIcon(layout?: string) {
   if (!layout) return <LayoutGrid size={16} className="text-gray-400" />;
   if (layout.includes('Full')) return <AlignLeft size={16} className="text-rose-500" />;
   if (layout.includes('Hero')) return <LayoutTemplate size={16} className="text-purple-500" />;
-  if (layout.includes('2')) return <Columns size={16} className="text-blue-500" />;
+  if (layout.includes('2')) return <Columns2 size={16} className="text-blue-500" />;
   if (layout.includes('3')) return <LayoutGrid size={16} className="text-green-500" />;
   return <LayoutGrid size={16} className="text-yellow-500" />;
 }
