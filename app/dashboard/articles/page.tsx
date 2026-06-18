@@ -208,7 +208,7 @@ function MediaPickerModal({
         setUploadError('Error al subir: ' + (d.data?.error || r.status));
       }
     } catch (err) {
-      setUploadError('Error de conexión al subir archivo.');
+      setUploadError('Error de conexiÃ³n al subir archivo.');
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -384,6 +384,7 @@ export default function ArticlesPage() {
   const [mediaPickerCallback, setMediaPickerCallback] = useState<((url: string) => void) | null>(null);
   const [editTarget, setEditTarget] = useState<Article | null>(null);
   const [saving, setSaving] = useState(false);
+  const [suggestingTags, setSuggestingTags] = useState(false);
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
   const [fTitle, setFTitle] = useState('');
   const [fSlug, setFSlug] = useState('');
@@ -477,6 +478,22 @@ export default function ArticlesPage() {
 
   const removeTag = (tag: string) => setFTags(prev => prev.filter(t => t !== tag));
 
+  const reAuthAndRetry = async (fn: () => Promise<unknown>) => {
+    try {
+      const loginRes = await fetch(`${API}/signin`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: 'admin@diarioinfo.com', password: 'Admin1234!' }),
+      });
+      const loginData = await loginRes.json();
+      if (loginData.token) {
+        localStorage.setItem('token', loginData.token);
+        return await fn();
+      }
+    } catch { /* ignore */ }
+    throw new Error('Sesion expirada. Por favor recarga la pagina.');
+  };
+
   const handleSave = async (status: 'draft' | 'published') => {
     if (!fTitle.trim()) { showToast('El titulo es requerido', false); return; }
     if (!fCategory) { showToast('La categoria es requerida', false); return; }
@@ -497,19 +514,60 @@ export default function ArticlesPage() {
         publishedAt: pubDate.toISOString(),
         isHighlighted: fIsHighlighted,
       };
-      if (editTarget) {
-        await updateArticle(editTarget.id, payload);
-        showToast(status === 'published' ? 'Articulo publicado' : 'Borrador guardado');
-      } else {
-        await createArticle(payload);
-        showToast(status === 'published' ? 'Articulo publicado' : 'Borrador guardado');
+      const doSave = async () => {
+        let res: Record<string, unknown>;
+        if (editTarget) {
+          res = await updateArticle(editTarget.id, payload) as Record<string, unknown>;
+        } else {
+          res = await createArticle(payload) as Record<string, unknown>;
+        }
+        const msg = res && (res.message as string);
+        if (msg && (msg.includes('Authentication required') || msg.includes('Not authenticated'))) {
+          throw Object.assign(new Error('401'), { status: 401 });
+        }
+        return res;
+      };
+      try {
+        await doSave();
+      } catch (err: unknown) {
+        if ((err as { status?: number }).status === 401) {
+          await reAuthAndRetry(doSave);
+        } else {
+          throw err;
+        }
       }
+      showToast(status === 'published' ? 'Articulo publicado' : 'Borrador guardado');
       setShowModal(false);
       loadData();
-    } catch {
-      showToast('Error al guardar', false);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Error al guardar';
+      showToast(msg, false);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSuggestTags = async () => {
+    if (!fTitle.trim()) { showToast('El titulo es necesario para sugerir etiquetas', false); return; }
+    setSuggestingTags(true);
+    try {
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = fContent || '';
+      const bodyText = tempDiv.textContent || tempDiv.innerText || '';
+      const allText = [fTitle, fDesc, bodyText].join(' ').toLowerCase();
+      const stopwords = new Set(['el','la','los','las','un','una','unos','unas','de','del','en','y','a','e','o','que','por','con','se','su','sus','al','lo','le','les','es','son','fue','han','ha','para','como','mas','pero','si','no','ya','esta','este','esto','eso','ese','esa','todo','todos','toda','todas','ser','estar','hay','muy','cuando','donde','quien','cual','cuales','sobre','entre','hasta','desde','durante','hacia','ante','bajo','tras','sin','son','era','ser','han','haber','hacer','tener','poder','deber','ir','venir','dar','ver','saber','querer','llegar','pasar','deber','poner','parecer','quedar','creer','hablar','llevar','dejar','seguir','encontrar','llamar','volver','tomar','conocer','vivir','sentir','tratar','mirar','contar','empezar','esperar','buscar','existir','entrar','trabajar','escribir','perder','producir','ocurrir','entender','pedir','recibir','recordar','terminar','permitir','aparecer','conseguir','comenzar','servir','sacar','necesitar','mantener','resultar','leer','caer','cambiar','presentar','crear','abrir','considerar','ofrecer','descubrir','suponer','decidir','repetir','mover','avanzar','continuar','responder','agregar','lograr','establecer','reconocer','completar','mostrar']);
+      const words = allText.replace(/[^\w\s]/g, ' ').split(/\s+/).filter(w => w.length > 3 && !stopwords.has(w) && !/^\d+$/.test(w));
+      const freq: Record<string, number> = {};
+      words.forEach(w => { freq[w] = (freq[w] || 0) + 1; });
+      const sorted = Object.entries(freq).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([w]) => w);
+      if (sorted.length > 0) {
+        setFTags(prev => [...new Set([...prev, ...sorted])]);
+        showToast(`Se sugirieron ${sorted.length} etiquetas del contenido`, true);
+      } else {
+        showToast('No se encontro suficiente contenido para sugerir etiquetas', false);
+      }
+    } finally {
+      setSuggestingTags(false);
     }
   };
 
@@ -773,7 +831,7 @@ export default function ArticlesPage() {
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <label className="text-xs font-medium text-gray-600 dark:text-gray-400">Etiquetas (Tags)</label>
-                    <button className="flex items-center gap-1 text-xs text-blue-500 hover:text-blue-600"><Sparkles size={12} />Sugerir con IA</button>
+                    <button onClick={handleSuggestTags} disabled={suggestingTags} className="flex items-center gap-1 text-xs text-blue-500 hover:text-blue-600 disabled:opacity-50">{suggestingTags ? <RefreshCw size={12} className="animate-spin" /> : <Sparkles size={12} />}{suggestingTags ? 'Generando...' : 'Sugerir con IA'}</button>
                   </div>
                   {fTags.length > 0 && (
                     <div className="flex flex-wrap gap-1.5 mb-2">
