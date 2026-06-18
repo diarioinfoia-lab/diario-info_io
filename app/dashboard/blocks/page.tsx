@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { LayoutGrid, Plus, Trash2, MoreVertical, X, RefreshCw, Columns2, AlignLeft } from 'lucide-react';
+import { LayoutGrid, Plus, Trash2, MoreVertical, X, RefreshCw, Columns2, Newspaper, Rows2, PanelLeft, PanelRight } from 'lucide-react';
 
 const API = 'https://api2.diarioinfo.com';
 
@@ -33,13 +33,19 @@ function getColumnsForLayout(layout: string): number {
   if (layout === '2 Cols') return 2;
   if (layout === '3 Cols') return 3;
   if (layout === '4 Cols') return 4;
-  if (layout.startsWith('Hero')) return 2;
-  return 1;
-}
-
-function getLayoutIcon(layout: string) {
-  if (layout === 'Full-width') return <AlignLeft className="w-4 h-4 text-gray-500" />;
+  if (layout.startsWith('Herfunction getLayoutIcon(layout: string, columns?: {type: string}[]) {
+  const colTypes = columns ? columns.map(col => col.type).join(",").toLowerCase() : "";
+  if (layout === "Full-width") {
+    if (colTypes.includes("playlist") || colTypes.includes("video")) return <PanelLeft className="w-4 h-4 text-gray-500" />;
+    return <Newspaper className="w-4 h-4 text-gray-500" />;
+  }
+  if (layout === "2 Cols") return <Columns2 className="w-4 h-4 text-gray-500" />;
+  if (layout === "3 Cols") return <Rows2 className="w-4 h-4 text-gray-500" />;
+  if (layout === "4 Cols") return <LayoutGrid className="w-4 h-4 text-gray-500" />;
+  if (layout.includes("Izquierda")) return <PanelRight className="w-4 h-4 text-gray-500" />;
+  if (layout.includes("Derecha")) return <PanelLeft className="w-4 h-4 text-gray-500" />;
   return <Columns2 className="w-4 h-4 text-gray-500" />;
+}="w-4 h-4 text-gray-500" />;
 }
 
 interface Column {
@@ -116,7 +122,7 @@ function TemplateModal({ template, onClose, onSave }: TemplateModalProps) {
         setError(d.message || 'Error al guardar');
       }
     } catch {
-      setError('Error de conexión');
+      setError('Error de conexiÃ³n');
     }
     setSaving(false);
   };
@@ -216,7 +222,7 @@ export default function BlocksPage() {
   useEffect(() => { fetchTemplates(); }, []);
 
   const handleDelete = async (id: string) => {
-    if (!confirm('¿Eliminar esta plantilla?')) return;
+    if (!confirm('Â¿Eliminar esta plantilla?')) return;
     await fetch(API + '/block-template/' + id, { method: 'DELETE', headers: getHeaders() });
     fetchTemplates();
   };
@@ -243,7 +249,7 @@ export default function BlocksPage() {
             </div>
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Plantillas</h1>
-              <p className="text-sm text-gray-500">Gestión de plantillas de bloques</p>
+              <p className="text-sm text-gray-500">GestiÃ³n de plantillas de bloques</p>
             </div>
           </div>
           <div className="flex gap-2">
@@ -282,7 +288,7 @@ export default function BlocksPage() {
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Icono</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Nombre</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Código</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">CÃ³digo</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Layout</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Columnas</th>
                   <th className="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Acciones</th>
@@ -295,7 +301,7 @@ export default function BlocksPage() {
                     <tr key={id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-4">
                         <div className="flex items-center justify-center w-8 h-8 bg-gray-100 rounded-lg">
-                          {getLayoutIcon(t.layout)}
+                          {getLayoutIcon(t.layout, t.columns)}
                         </div>
                       </td>
                       <td className="px-6 py-4">
