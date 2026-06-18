@@ -208,7 +208,7 @@ function MediaPickerModal({
         setUploadError('Error al subir: ' + (d.data?.error || r.status));
       }
     } catch (err) {
-      setUploadError('Error de conexiÃ³n al subir archivo.');
+      setUploadError('Error de conexiÃÂ³n al subir archivo.');
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -482,48 +482,40 @@ export default function ArticlesPage() {
     if (!fTitle.trim()) { showToast('El titulo es requerido', false); return; }
     if (!fCategory) { showToast('La categoria es requerida', false); return; }
     setSaving(true);
-    const pubDate = new Date(fPubYear, fPubMonth, fPubDay);
-    const payload = {
-      title: fTitle.trim(),
-      slug: fSlug || slugify(fTitle),
-      description: fDesc.trim(),
-      content: fContent,
-      category: fCategory,
-      status,
-      priority: fPriority,
-      destination: fDestination,
-      tags: fTags,
-      featuredImage: fFeaturedImage.trim(),
-      publishedAt: pubDate.toISOString(),
-      isHighlighted: fIsHighlighted,
-    };
-    const doSave = async () => {
-      let res;
+    try {
+      const pubDate = new Date(fPubYear, fPubMonth, fPubDay);
+      const payload = {
+        title: fTitle.trim(),
+        slug: fSlug || slugify(fTitle),
+        description: fDesc.trim(),
+        content: fContent,
+        category: fCategory,
+        status,
+        priority: fPriority,
+        destination: fDestination,
+        tags: fTags,
+        featuredImage: fFeaturedImage.trim(),
+        publishedAt: pubDate.toISOString(),
+        isHighlighted: fIsHighlighted,
+      };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let res: any;
       if (editTarget) {
         res = await updateArticle(editTarget.id, payload);
       } else {
         res = await createArticle(payload);
       }
-      // Detect expired session
-      if (res && typeof res === 'object' && 'message' in res) {
-        const msg = String((res as Record<string, unknown>).message || '');
-        if (msg.includes('Authentication required') || msg.includes('Not authenticated')) {
-          // Try to renew session
-          const token = localStorage.getItem('token');
-          if (!token) throw new Error('Sesion expirada. Por favor recarga la pagina.');
-          throw new Error('Sesion expirada. Por favor recarga la pagina e inicia sesion nuevamente.');
-        }
+      // Detect expired/invalid session
+      if (res?.message && (String(res.message).includes('Authentication required') || String(res.message).includes('Not authenticated'))) {
+        showToast('Sesion expirada. Por favor recarga la pagina.', false);
+        setSaving(false);
+        return;
       }
-      return res;
-    };
-    try {
-      await doSave();
       showToast(status === 'published' ? 'Articulo publicado' : 'Borrador guardado');
       setShowModal(false);
       loadData();
-    } catch (saveErr: unknown) {
-      const errMsg = saveErr instanceof Error ? saveErr.message : 'Error al guardar';
-      showToast(errMsg, false);
+    } catch {
+      showToast('Error al guardar. Verificá tu conexion.', false);
     } finally {
       setSaving(false);
     }
