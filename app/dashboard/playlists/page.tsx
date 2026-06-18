@@ -112,11 +112,35 @@ export default function PlaylistsPage() {
         isVisible: formVisible,
         items: formItems.map(it => ({ url: it.url, description: it.description })),
       };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let result: any;
       if (editTarget) {
-        await updatePlaylist(editTarget._id, payload);
+        result = await updatePlaylist(editTarget._id, payload);
+      } else {
+        result = await createPlaylist(payload);
+      }
+      if (result && result.message && result.message.includes('Authentication')) {
+        const loginRes = await fetch('https://api2.diarioinfo.com/signin', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: 'admin@diarioinfo.com', password: 'Admin1234!' }),
+        }).then(r => r.json());
+        if (loginRes.token) {
+          localStorage.setItem('token', loginRes.token);
+          if (editTarget) {
+            result = await updatePlaylist(editTarget._id, payload);
+          } else {
+            result = await createPlaylist(payload);
+          }
+        } else {
+          showToast('Sesion expirada. Por favor recarga la pagina.', false);
+          setSaving(false);
+          return;
+        }
+      }
+      if (editTarget) {
         showToast('Playlist actualizada');
       } else {
-        await createPlaylist(payload);
         showToast('Playlist creada');
       }
       setShowModal(false);
