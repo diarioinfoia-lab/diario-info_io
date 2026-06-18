@@ -376,6 +376,9 @@ export default function ArticlesPage() {
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [showStatusMenu, setShowStatusMenu] = useState(false);
   const [showCategoryMenu, setShowCategoryMenu] = useState(false);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
@@ -414,15 +417,30 @@ export default function ArticlesPage() {
     setLoading(true);
     try {
       const [artData, catData] = await Promise.all([
-        getArticles({ limit: 500 }),
+        getArticles({ page: 1 }),
         getCategories({ limit: 100 }),
       ]);
       if (artData.articles) setArticles(artData.articles);
       if (catData.categories) setCategories(catData.categories);
+      setCurrentPage(1);
+      setHasMore(!!artData.nextPage);
     } finally {
       setLoading(false);
     }
   }, []);
+
+  const handleLoadMore = async () => {
+    setLoadingMore(true);
+    try {
+      const nextP = currentPage + 1;
+      const artData = await getArticles({ page: nextP });
+      if (artData.articles) setArticles(prev => [...prev, ...artData.articles]);
+      setCurrentPage(nextP);
+      setHasMore(!!artData.nextPage);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -689,6 +707,17 @@ export default function ArticlesPage() {
               </div>
             </div>
           ))
+        )}
+        {hasMore && !search && !filterStatus && !filterCategory && (
+          <div className="flex justify-center py-4">
+            <button
+              onClick={handleLoadMore}
+              disabled={loadingMore}
+              className="px-6 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50"
+            >
+              {loadingMore ? 'Cargando...' : 'Cargar mas'}
+            </button>
+          </div>
         )}
       </div>
       {(showStatusMenu || showCategoryMenu || openMenu) && (
