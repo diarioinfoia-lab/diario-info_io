@@ -208,7 +208,7 @@ function MediaPickerModal({
         setUploadError('Error al subir: ' + (d.data?.error || r.status));
       }
     } catch (err) {
-      setUploadError('Error de conexiÃÂ³n al subir archivo.');
+      setUploadError('Error de conexiÃ³n al subir archivo.');
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -498,54 +498,50 @@ export default function ArticlesPage() {
         publishedAt: pubDate.toISOString(),
         isHighlighted: fIsHighlighted,
       };
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      let res: any;
       if (editTarget) {
-        res = await updateArticle(editTarget.id, payload);
+        await updateArticle(editTarget.id, payload);
+        showToast(status === 'published' ? 'Articulo publicado' : 'Borrador guardado');
       } else {
-        res = await createArticle(payload);
+        await createArticle(payload);
+        showToast(status === 'published' ? 'Articulo publicado' : 'Borrador guardado');
       }
-      // Detect expired/invalid session
-      if (res?.message && (String(res.message).includes('Authentication required') || String(res.message).includes('Not authenticated'))) {
-        showToast('Sesion expirada. Por favor recarga la pagina.', false);
-        setSaving(false);
-        return;
-      }
-      showToast(status === 'published' ? 'Articulo publicado' : 'Borrador guardado');
       setShowModal(false);
       loadData();
-    } catch {
+        } catch {
       showToast('Error al guardar. Verificá tu conexion.', false);
     } finally {
       setSaving(false);
     }
-  };
-
-  const handleSuggestTags = async () => {
-    if (!fTitle.trim()) { showToast('El titulo es necesario para sugerir etiquetas', false); return; }
+  };  const handleSuggestTags = async () => {
+    if (!fTitle.trim() && !fDesc.trim() && !fContent.trim()) {
+      showToast('Agrega titulo o contenido para sugerir etiquetas', false);
+      return;
+    }
     setSuggestingTags(true);
     try {
-      const tempDiv = document.createElement('div');
-      tempDiv.innerHTML = fContent || '';
-      const bodyText = tempDiv.textContent || tempDiv.innerText || '';
+      const div = document.createElement('div');
+      div.innerHTML = fContent || '';
+      const bodyText = String(div.textContent || '');
       const allText = [fTitle, fDesc, bodyText].join(' ').toLowerCase();
-      const stopwords = new Set(['el','la','los','las','un','una','unos','unas','de','del','en','y','a','e','o','que','por','con','se','su','sus','al','lo','le','les','es','son','fue','han','ha','para','como','mas','pero','si','no','ya','esta','este','esto','eso','ese','esa','todo','todos','toda','todas','ser','estar','hay','muy','cuando','donde','quien','cual','cuales','sobre','entre','hasta','desde','durante','hacia','ante','bajo','tras','sin','son','era','ser','han','haber','hacer','tener','poder','deber','ir','venir','dar','ver','saber','querer','llegar','pasar','deber','poner','parecer','quedar','creer','hablar','llevar','dejar','seguir','encontrar','llamar','volver','tomar','conocer','vivir','sentir','tratar','mirar','contar','empezar','esperar','buscar','existir','entrar','trabajar','escribir','perder','producir','ocurrir','entender','pedir','recibir','recordar','terminar','permitir','aparecer','conseguir','comenzar','servir','sacar','necesitar','mantener','resultar','leer','caer','cambiar','presentar','crear','abrir','considerar','ofrecer','descubrir','suponer','decidir','repetir','mover','avanzar','continuar','responder','agregar','lograr','establecer','reconocer','completar','mostrar']);
-      const words = allText.replace(/[^\w\s]/g, ' ').split(/\s+/).filter(w => w.length > 3 && !stopwords.has(w) && !/^\d+$/.test(w));
+      const stops = new Set(['el','la','los','las','un','una','de','del','en','y','a','que','por','con','se','su','al','lo','es','son','fue','han','para','como','mas','pero','si','no','ya','esta','este','todo','ser','estar','hay','muy','cuando','sobre','entre','hasta','desde']);
+      const wordList = allText.replace(/[^a-zà-ÿs]/g, ' ').split(/s+/).filter((w: string) => w.length > 3 && !stops.has(w));
       const freq: Record<string, number> = {};
-      words.forEach(w => { freq[w] = (freq[w] || 0) + 1; });
-      const sorted = Object.entries(freq).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([w]) => w);
+      wordList.forEach((w: string) => { freq[w] = (freq[w] || 0) + 1; });
+      const sorted = Object.keys(freq).sort((a: string, b: string) => freq[b] - freq[a]).slice(0, 8);
       if (sorted.length > 0) {
         setFTags(prev => [...new Set([...prev, ...sorted])]);
-        showToast(`Se sugirieron ${sorted.length} etiquetas del contenido`, true);
+        showToast('Se sugirieron ' + sorted.length + ' etiquetas');
       } else {
-        showToast('No se encontro suficiente contenido para sugerir etiquetas', false);
+        showToast('No se encontro suficiente contenido', false);
       }
+    } catch {
+      showToast('Error al sugerir etiquetas', false);
     } finally {
       setSuggestingTags(false);
     }
   };
 
-  const handleDelete = async (id: string) => {
+const handleDelete = async (id: string) => {
     if (!confirm('Eliminar este articulo?')) return;
     try {
       await deleteArticle(id);
