@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { LayoutGrid, Plus, Trash2, MoreVertical, X, RefreshCw, Columns2, Newspaper, Rows2, PanelLeft, PanelRight } from 'lucide-react';
+import { LayoutGrid, Plus, MoreVertical, X, RefreshCw, Columns2, Newspaper, Rows2, PanelLeft, PanelRight } from 'lucide-react';
 
 const API = 'https://api2.diarioinfo.com';
 
@@ -122,7 +122,7 @@ function TemplateModal({ template, onClose, onSave }: TemplateModalProps) {
         setError(d.message || 'Error al guardar');
       }
     } catch {
-      setError('Error de conexiÃÂ³n');
+      setError('Error de conexiÃÂÃÂ³n');
     }
     setSaving(false);
   };
@@ -222,7 +222,7 @@ export default function BlocksPage() {
   useEffect(() => { fetchTemplates(); }, []);
 
   const handleDelete = async (id: string) => {
-    if (!confirm('ÃÂ¿Eliminar esta plantilla?')) return;
+    if (!confirm('ÃÂÃÂ¿Eliminar esta plantilla?')) return;
     await fetch(API + '/block-template/' + id, { method: 'DELETE', headers: getHeaders() });
     fetchTemplates();
   };
@@ -249,7 +249,7 @@ export default function BlocksPage() {
             </div>
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Plantillas</h1>
-              <p className="text-sm text-gray-500">GestiÃÂ³n de plantillas de bloques</p>
+              <p className="text-sm text-gray-500">GestiÃÂÃÂ³n de plantillas de bloques</p>
             </div>
           </div>
           <div className="flex gap-2">
@@ -288,7 +288,7 @@ export default function BlocksPage() {
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Icono</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Nombre</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">CÃÂ³digo</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">CÃÂÃÂ³digo</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Layout</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Columnas</th>
                   <th className="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Acciones</th>
@@ -380,5 +380,3 @@ export default function BlocksPage() {
     </div>
   );
 }
-
-// build trigger
