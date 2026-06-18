@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Search, Plus, Trash2, MoreVertical, FileText, Bold, Italic, Underline, List, ListOrdered, Link2, Image, Video, Sparkles, Upload, X, RefreshCw, ImageIcon, Link } from 'lucide-react';
+import { Search, Plus, Trash2, MoreVertical, FileText, Bold, Italic, Underline, List, ListOrdered, Link2, Image, Video, Sparkles, Upload, X, RefreshCw, ImageIcon, Link, ArrowDown, ArrowUp, Minus, Flame } from 'lucide-react';
 import { getArticles, createArticle, updateArticle, deleteArticle, getCategories } from '@/lib/api';
 
 const API = 'https://api2.diarioinfo.com';
@@ -208,7 +208,7 @@ function MediaPickerModal({
         setUploadError('Error al subir: ' + (d.data?.error || r.status));
       }
     } catch (err) {
-      setUploadError('Error de conexiÃÂÃÂ³n al subir archivo.');
+      setUploadError('Error de conexiÃÂÃÂÃÂÃÂ³n al subir archivo.');
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -598,6 +598,29 @@ export default function ArticlesPage() {
     return found?.color || '#6b7280';
   };
 
+  const getPriorityIcon = (priority: number) => {
+    if (priority >= 3) return (
+      <div className="flex items-center justify-center h-7 w-7 rounded-full bg-red-50 dark:bg-red-900/20 shrink-0" title="Prioridad urgente">
+        <Flame className="h-4 w-4 text-red-500" />
+      </div>
+    );
+    if (priority === 2) return (
+      <div className="flex items-center justify-center h-7 w-7 rounded-full bg-orange-50 dark:bg-orange-900/20 shrink-0" title="Prioridad alta">
+        <ArrowUp className="h-4 w-4 text-orange-500" />
+      </div>
+    );
+    if (priority === 1) return (
+      <div className="flex items-center justify-center h-7 w-7 rounded-full bg-blue-50 dark:bg-blue-900/20 shrink-0" title="Prioridad media">
+        <Minus className="h-4 w-4 text-blue-400" />
+      </div>
+    );
+    return (
+      <div className="flex items-center justify-center h-7 w-7 rounded-full bg-muted/50 shrink-0" title="Prioridad normal">
+        <ArrowDown className="h-4 w-4 text-gray-400" />
+      </div>
+    );
+  };
+
   const years = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i);
 
   const filtered = articles.filter(a => {
@@ -606,6 +629,11 @@ export default function ArticlesPage() {
     const matchStatus = !filterStatus || a.status === filterStatus;
     const matchCat = !filterCategory || (typeof a.category === 'object' ? a.category?.id === filterCategory : a.category === filterCategory);
     return matchSearch && matchStatus && matchCat;
+  }).sort((a, b) => {
+    if ((b.priority || 0) !== (a.priority || 0)) return (b.priority || 0) - (a.priority || 0);
+    const dateA = new Date(a.date || a.createdAt || 0).getTime();
+    const dateB = new Date(b.date || b.createdAt || 0).getTime();
+    return dateB - dateA;
   });
   return (
     <div className="p-6 max-w-6xl mx-auto">
@@ -681,9 +709,12 @@ export default function ArticlesPage() {
         ) : (
           filtered.map(art => (
             <div key={art.id} className="grid grid-cols-[1fr_160px_120px_100px_120px_80px] items-center px-4 py-3 border-b border-gray-50 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50">
-              <div className="min-w-0 pr-4">
-                <p className="font-medium text-gray-900 dark:text-white text-sm truncate">{art.title}</p>
-                {art.description && <p className="text-xs text-gray-400 truncate mt-0.5">{art.description}</p>}
+              <div className="min-w-0 pr-4 flex items-center gap-2">
+                {getPriorityIcon(art.priority || 0)}
+                <div className="min-w-0">
+                  <p className="font-medium text-gray-900 dark:text-white text-sm truncate">{art.title}</p>
+                  {art.description && <p className="text-xs text-gray-400 truncate mt-0.5">{art.description}</p>}
+                </div>
               </div>
               <div><span className="text-xs px-2 py-1 rounded-full font-medium text-white" style={{backgroundColor: getCatColor(art.category)}}>{getCatName(art.category)}</span></div>
               <div className="text-sm text-gray-500 dark:text-gray-400 truncate">{typeof art.createdBy === 'object' ? art.createdBy?.name : '-'}</div>
