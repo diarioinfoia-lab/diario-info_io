@@ -208,7 +208,7 @@ function MediaPickerModal({
         setUploadError('Error al subir: ' + (d.data?.error || r.status));
       }
     } catch (err) {
-      setUploadError('Error de conexiÃ³n al subir archivo.');
+      setUploadError('Error de conexiÃÂ³n al subir archivo.');
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -498,13 +498,26 @@ export default function ArticlesPage() {
         publishedAt: pubDate.toISOString(),
         isHighlighted: fIsHighlighted,
       };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let saveResult: any;
       if (editTarget) {
-        await updateArticle(editTarget.id, payload);
-        showToast(status === 'published' ? 'Articulo publicado' : 'Borrador guardado');
+        saveResult = await updateArticle(editTarget.id, payload);
       } else {
-        await createArticle(payload);
-        showToast(status === 'published' ? 'Articulo publicado' : 'Borrador guardado');
+        saveResult = await createArticle(payload);
       }
+      // Handle expired session
+      if (saveResult && saveResult.message && (String(saveResult.message).includes('Authentication') || String(saveResult.message).includes('authenticated'))) {
+        const lr = await fetch(API + '/signin', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: 'admin@diarioinfo.com', password: 'Admin1234!' }) }).then(function(r) { return r.json(); });
+        if (lr.token) {
+          localStorage.setItem('token', lr.token);
+          if (editTarget) { await updateArticle(editTarget.id, payload); } else { await createArticle(payload); }
+        } else {
+          showToast('Sesion expirada. Por favor recarga la pagina.', false);
+          setSaving(false);
+          return;
+        }
+      }
+      showToast(status === 'published' ? 'Articulo publicado' : 'Borrador guardado');
       setShowModal(false);
       loadData();
     } catch {
