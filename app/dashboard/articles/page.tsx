@@ -478,70 +478,52 @@ export default function ArticlesPage() {
 
   const removeTag = (tag: string) => setFTags(prev => prev.filter(t => t !== tag));
 
-  const reAuthAndRetry = async (fn: () => Promise<unknown>) => {
-    try {
-      const loginRes = await fetch(`${API}/signin`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: 'admin@diarioinfo.com', password: 'Admin1234!' }),
-      });
-      const loginData = await loginRes.json();
-      if (loginData.token) {
-        localStorage.setItem('token', loginData.token);
-        return await fn();
-      }
-    } catch { /* ignore */ }
-    throw new Error('Sesion expirada. Por favor recarga la pagina.');
-  };
-
   const handleSave = async (status: 'draft' | 'published') => {
     if (!fTitle.trim()) { showToast('El titulo es requerido', false); return; }
     if (!fCategory) { showToast('La categoria es requerida', false); return; }
     setSaving(true);
-    try {
-      const pubDate = new Date(fPubYear, fPubMonth, fPubDay);
-      const payload = {
-        title: fTitle.trim(),
-        slug: fSlug || slugify(fTitle),
-        description: fDesc.trim(),
-        content: fContent,
-        category: fCategory,
-        status,
-        priority: fPriority,
-        destination: fDestination,
-        tags: fTags,
-        featuredImage: fFeaturedImage.trim(),
-        publishedAt: pubDate.toISOString(),
-        isHighlighted: fIsHighlighted,
-      };
-      const doSave = async () => {
-        let res: Record<string, unknown>;
-        if (editTarget) {
-          res = await updateArticle(editTarget.id, payload) as Record<string, unknown>;
-        } else {
-          res = await createArticle(payload) as Record<string, unknown>;
-        }
-        const msg = res && (res.message as string);
-        if (msg && (msg.includes('Authentication required') || msg.includes('Not authenticated'))) {
-          throw Object.assign(new Error('401'), { status: 401 });
-        }
-        return res;
-      };
-      try {
-        await doSave();
-      } catch (err: unknown) {
-        if ((err as { status?: number }).status === 401) {
-          await reAuthAndRetry(doSave);
-        } else {
-          throw err;
+    const pubDate = new Date(fPubYear, fPubMonth, fPubDay);
+    const payload = {
+      title: fTitle.trim(),
+      slug: fSlug || slugify(fTitle),
+      description: fDesc.trim(),
+      content: fContent,
+      category: fCategory,
+      status,
+      priority: fPriority,
+      destination: fDestination,
+      tags: fTags,
+      featuredImage: fFeaturedImage.trim(),
+      publishedAt: pubDate.toISOString(),
+      isHighlighted: fIsHighlighted,
+    };
+    const doSave = async () => {
+      let res;
+      if (editTarget) {
+        res = await updateArticle(editTarget.id, payload);
+      } else {
+        res = await createArticle(payload);
+      }
+      // Detect expired session
+      if (res && typeof res === 'object' && 'message' in res) {
+        const msg = String((res as Record<string, unknown>).message || '');
+        if (msg.includes('Authentication required') || msg.includes('Not authenticated')) {
+          // Try to renew session
+          const token = localStorage.getItem('token');
+          if (!token) throw new Error('Sesion expirada. Por favor recarga la pagina.');
+          throw new Error('Sesion expirada. Por favor recarga la pagina e inicia sesion nuevamente.');
         }
       }
+      return res;
+    };
+    try {
+      await doSave();
       showToast(status === 'published' ? 'Articulo publicado' : 'Borrador guardado');
       setShowModal(false);
       loadData();
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Error al guardar';
-      showToast(msg, false);
+    } catch (saveErr: unknown) {
+      const errMsg = saveErr instanceof Error ? saveErr.message : 'Error al guardar';
+      showToast(errMsg, false);
     } finally {
       setSaving(false);
     }
