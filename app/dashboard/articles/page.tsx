@@ -631,8 +631,8 @@ export default function ArticlesPage() {
     return matchSearch && matchStatus && matchCat;
   }).sort((a, b) => {
     if ((b.priority || 0) !== (a.priority || 0)) return (b.priority || 0) - (a.priority || 0);
-    const dateA = new Date(a.date || a.createdAt || 0).getTime();
-    const dateB = new Date(b.date || b.createdAt || 0).getTime();
+    const dateA = new Date(a.createdAt || 0).getTime();
+    const dateB = new Date(b.createdAt || 0).getTime();
     return dateB - dateA;
   });
   return (
