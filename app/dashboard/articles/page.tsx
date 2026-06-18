@@ -208,7 +208,7 @@ function MediaPickerModal({
         setUploadError('Error al subir: ' + (d.data?.error || r.status));
       }
     } catch (err) {
-      setUploadError('Error de conexiÃÂ³n al subir archivo.');
+      setUploadError('Error de conexiÃÂÃÂ³n al subir archivo.');
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -414,7 +414,7 @@ export default function ArticlesPage() {
     setLoading(true);
     try {
       const [artData, catData] = await Promise.all([
-        getArticles({ limit: 100 }),
+        getArticles({ limit: 500 }),
         getCategories({ limit: 100 }),
       ]);
       if (artData.articles) setArticles(artData.articles);
