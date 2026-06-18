@@ -507,12 +507,14 @@ export default function ArticlesPage() {
       }
       setShowModal(false);
       loadData();
-        } catch {
-      showToast('Error al guardar. Verificá tu conexion.', false);
+    } catch {
+      showToast('Error al guardar', false);
     } finally {
       setSaving(false);
     }
-  };  const handleSuggestTags = async () => {
+  };
+
+    const handleSuggestTags = async () => {
     if (!fTitle.trim() && !fDesc.trim() && !fContent.trim()) {
       showToast('Agrega titulo o contenido para sugerir etiquetas', false);
       return;
@@ -521,18 +523,19 @@ export default function ArticlesPage() {
     try {
       const div = document.createElement('div');
       div.innerHTML = fContent || '';
-      const bodyText = String(div.textContent || '');
+      const bodyText = (div.textContent || '').toString();
       const allText = [fTitle, fDesc, bodyText].join(' ').toLowerCase();
-      const stops = new Set(['el','la','los','las','un','una','de','del','en','y','a','que','por','con','se','su','al','lo','es','son','fue','han','para','como','mas','pero','si','no','ya','esta','este','todo','ser','estar','hay','muy','cuando','sobre','entre','hasta','desde']);
-      const wordList = allText.replace(/[^a-zà-ÿs]/g, ' ').split(/s+/).filter((w: string) => w.length > 3 && !stops.has(w));
+      const stops = ['el','la','los','las','un','una','de','del','en','y','a','que','por','con','se','su','al','lo','es','son','fue','han','para','como','mas','pero','si','no','ya','esta','este','todo','ser','estar','hay','muy','cuando','sobre','entre','hasta'];
+      const stopsSet = new Set(stops);
+      const wordList = allText.split(' ').filter(function(w: string) { return w.length > 3 && !stopsSet.has(w); });
       const freq: Record<string, number> = {};
-      wordList.forEach((w: string) => { freq[w] = (freq[w] || 0) + 1; });
-      const sorted = Object.keys(freq).sort((a: string, b: string) => freq[b] - freq[a]).slice(0, 8);
+      wordList.forEach(function(w: string) { freq[w] = (freq[w] || 0) + 1; });
+      const sorted = Object.keys(freq).sort(function(a: string, b: string) { return freq[b] - freq[a]; }).slice(0, 8);
       if (sorted.length > 0) {
-        setFTags(prev => [...new Set([...prev, ...sorted])]);
-        showToast('Se sugirieron ' + sorted.length + ' etiquetas');
+        setFTags(function(prev: string[]) { return Array.from(new Set([...prev, ...sorted])); });
+        showToast('Se sugirieron ' + String(sorted.length) + ' etiquetas del contenido');
       } else {
-        showToast('No se encontro suficiente contenido', false);
+        showToast('No se encontro suficiente contenido para sugerir etiquetas', false);
       }
     } catch {
       showToast('Error al sugerir etiquetas', false);
@@ -541,7 +544,7 @@ export default function ArticlesPage() {
     }
   };
 
-const handleDelete = async (id: string) => {
+  const handleDelete = async (id: string) => {
     if (!confirm('Eliminar este articulo?')) return;
     try {
       await deleteArticle(id);
