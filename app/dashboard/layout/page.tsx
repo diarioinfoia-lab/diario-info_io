@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { GripVertical, Pencil, Trash2, X, Search, Plus, AlignLeft, Columns2, LayoutGrid, BookOpen, MonitorPlay, Megaphone, FileText, Save } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { GripVertical, Pencil, Trash2, X, Search, Plus, AlignLeft, Columns2, LayoutGrid, BookOpen, MonitorPlay, Megaphone, FileText, Save, ChevronDown } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 const API = 'https://api2.diarioinfo.com';
@@ -18,7 +18,7 @@ function getHeaders() {
   };
 }
 
-// Destinos: coinciden exactamente con el formulario de Noticias
+// Destinos: coinciden con el formulario de Noticias
 const DESTINATIONS = [
   { value: 'general',            label: 'General' },
   { value: 'analisis',           label: 'Analisis' },
@@ -31,60 +31,42 @@ const DESTINATIONS = [
   { value: 'hockey',             label: 'Federacion Santiaguena de Hockey' },
 ];
 
-// Colores de fondo por destino - replicados del original ia.diarioinfo.com
+// Colores por destino - replicados del original ia.diarioinfo.com
 const DEST_COLORS: Record<string, string> = {
-  general:            'bg-white border-gray-200 text-gray-900',
-  analisis:           'bg-gradient-to-br from-blue-500 to-indigo-700 border-blue-700 text-white',
-  especial:           'bg-gradient-to-br from-purple-500 to-fuchsia-700 border-purple-700 text-white',
-  ultimomomento:      'bg-gradient-to-br from-red-500 to-red-700 border-red-700 text-white',
-  tuayllu:            'bg-gradient-to-br from-orange-500 to-orange-600 border-orange-600 text-white',
-  mundial2026:        'bg-gradient-to-r from-[#74ACDF] via-white to-[#74ACDF] border-[#74ACDF] text-[#003566]',
-  charlycarabajal:    'bg-gradient-to-br from-[#B87333] to-[#A45A52] border-[#B87333] text-white',
-  juanmanuelmartinez: 'bg-gradient-to-br from-[#005B96] to-[#4E595D] border-[#005B96] text-white',
-  hockey:             'bg-gradient-to-br from-[#163E85] to-[#B71C2B] border-[#C79A1B] text-white',
-};
-
-// Icon/text accent color for each destination (for the select icon)
-const DEST_ICON_COLORS: Record<string, string> = {
-  general:            'text-gray-500',
-  analisis:           'text-blue-300',
-  especial:           'text-purple-300',
-  ultimomomento:      'text-red-300',
-  tuayllu:            'text-orange-300',
-  mundial2026:        'text-[#74ACDF]',
-  charlycarabajal:    'text-[#B87333]',
-  juanmanuelmartinez: 'text-[#005B96]',
-  hockey:             'text-[#163E85]',
+  general:            'bg-white border-gray-200',
+  analisis:           'bg-gradient-to-br from-blue-500 to-indigo-700 border-blue-700',
+  especial:           'bg-gradient-to-br from-purple-500 to-fuchsia-700 border-purple-700',
+  ultimomomento:      'bg-gradient-to-br from-red-500 to-red-700 border-red-700',
+  tuayllu:            'bg-gradient-to-br from-orange-500 to-orange-600 border-orange-600',
+  mundial2026:        'bg-gradient-to-r from-[#74ACDF] via-white to-[#74ACDF] border-[#74ACDF]',
+  charlycarabajal:    'bg-gradient-to-br from-[#B87333] to-[#A45A52] border-[#B87333]',
+  juanmanuelmartinez: 'bg-gradient-to-br from-[#005B96] to-[#4E595D] border-[#005B96]',
+  hockey:             'bg-gradient-to-br from-[#163E85] to-[#B71C2B] border-[#C79A1B]',
 };
 
 function getDestColorClass(dest: string): string {
-  return DEST_COLORS[dest?.toLowerCase()] || DEST_COLORS.general;
+  return DEST_COLORS[(dest || 'general').toLowerCase()] || DEST_COLORS.general;
+}
+
+function isColoredDest(dest: string): boolean {
+  return (dest || 'general').toLowerCase() !== 'general';
 }
 
 interface Column { type: string; }
-
-interface BlockConfig {
-  destination?: string;
-}
-
+interface BlockConfig { destination?: string; }
 interface BlockTemplate {
-  id?: string;
-  _id?: string;
-  name: string;
-  code: string;
-  layout: string;
-  columns: Column[];
+  id?: string; _id?: string;
+  name: string; code: string; layout: string; columns: Column[];
 }
-
 interface Block {
-  id?: string;
-  _id?: string;
+  id?: string; _id?: string;
   name: string;
   template: BlockTemplate | null;
   order: number;
   isVisible: boolean;
   config?: BlockConfig;
   content?: unknown[];
+  _tempId?: string; // for optimistic new blocks
 }
 
 function getId(item: { id?: string; _id?: string }): string {
@@ -92,7 +74,7 @@ function getId(item: { id?: string; _id?: string }): string {
 }
 
 function getDestLabel(val: string): string {
-  const found = DESTINATIONS.find(d => d.value === val?.toLowerCase());
+  const found = DESTINATIONS.find(d => d.value === (val || 'general').toLowerCase());
   return found ? found.label : (val ? val.charAt(0).toUpperCase() + val.slice(1) : 'General');
 }
 
@@ -105,13 +87,12 @@ function getColTypeIcon(type: string) {
   }
 }
 
-function getLayoutPreview(template: BlockTemplate | null, isColored: boolean) {
-  const textClass = isColored ? 'text-white/70' : 'text-gray-500';
-  const bgClass = isColored ? 'bg-white/20' : 'bg-gray-100';
-  
+function getLayoutPreview(template: BlockTemplate | null, colored: boolean) {
+  const bg = colored ? 'bg-white/20' : 'bg-gray-100';
+  const text = colored ? 'text-white/80' : 'text-gray-500';
   if (!template) {
     return (
-      <div className={`mt-2 rounded-lg ${bgClass} p-3 flex items-center justify-center text-xs ${textClass} h-14`}>
+      <div className={`mt-2 rounded-lg ${bg} p-3 flex items-center justify-center text-xs ${text} h-14`}>
         Sin plantilla asignada
       </div>
     );
@@ -120,7 +101,7 @@ function getLayoutPreview(template: BlockTemplate | null, isColored: boolean) {
   const layout = template.layout || '';
   if (layout === 'Full-width' || cols.length === 1) {
     return (
-      <div className={`mt-2 rounded-lg ${bgClass} p-3 flex items-center justify-center text-xs ${textClass} font-medium h-14`}>
+      <div className={`mt-2 rounded-lg ${bg} p-3 flex items-center justify-center text-xs ${text} font-medium h-14`}>
         {cols[0]?.type || 'Noticia'}
       </div>
     );
@@ -128,14 +109,12 @@ function getLayoutPreview(template: BlockTemplate | null, isColored: boolean) {
   if (layout.startsWith('Hero')) {
     return (
       <div className="mt-2 flex gap-2">
-        <div className={`flex-1 rounded-lg ${bgClass} p-2 flex items-center justify-center text-xs ${textClass} font-medium`} style={{ minHeight: '3.5rem' }}>
+        <div className={`flex-1 rounded-lg ${bg} p-2 flex items-center justify-center text-xs ${text} font-medium`} style={{ minHeight: '3.5rem' }}>
           {cols[0]?.type || 'Noticia'}
         </div>
         <div className="w-1/3 flex flex-col gap-1.5">
           {cols.slice(1).map((c, i) => (
-            <div key={i} className={`rounded-lg ${bgClass} p-2 flex items-center justify-center text-xs ${textClass} font-medium flex-1`}>
-              {c.type}
-            </div>
+            <div key={i} className={`rounded-lg ${bg} p-2 flex items-center justify-center text-xs ${text} font-medium flex-1`}>{c.type}</div>
           ))}
         </div>
       </div>
@@ -144,7 +123,7 @@ function getLayoutPreview(template: BlockTemplate | null, isColored: boolean) {
   return (
     <div className="mt-2 flex gap-2">
       {cols.map((col, i) => (
-        <div key={i} className={`flex-1 rounded-lg ${bgClass} p-2 flex items-center justify-center text-xs ${textClass} font-medium`} style={{ minHeight: '3rem' }}>
+        <div key={i} className={`flex-1 rounded-lg ${bg} p-2 flex items-center justify-center text-xs ${text} font-medium`} style={{ minHeight: '3rem' }}>
           {col.type}
         </div>
       ))}
@@ -152,10 +131,41 @@ function getLayoutPreview(template: BlockTemplate | null, isColored: boolean) {
   );
 }
 
-function getLayoutIcon(layout: string) {
-  if (!layout || layout === 'Full-width') return <AlignLeft className="w-5 h-5 text-blue-700" />;
-  if (layout === '4 Cols') return <LayoutGrid className="w-5 h-5 text-blue-700" />;
-  return <Columns2 className="w-5 h-5 text-blue-700" />;
+function getLayoutIcon(layout: string, white = false) {
+  const cls = white ? 'w-4 h-4 text-white' : 'w-5 h-5 text-blue-700';
+  if (!layout || layout === 'Full-width') return <AlignLeft className={cls} />;
+  if (layout === '4 Cols') return <LayoutGrid className={cls} />;
+  return <Columns2 className={cls} />;
+}
+
+// Custom destination selector - shows colored badge, native select underneath for accessibility
+interface DestSelectProps {
+  value: string;
+  colored: boolean;
+  onChange: (val: string) => void;
+}
+function DestSelect({ value, colored, onChange }: DestSelectProps) {
+  const label = getDestLabel(value);
+  return (
+    <div className="relative flex-1">
+      {/* Visual badge layer */}
+      <div className={`flex items-center justify-between px-3 py-2 rounded-xl border text-sm font-medium pointer-events-none select-none ${colored ? 'bg-white/20 border-white/30 text-white' : 'bg-white border-gray-200 text-gray-900'}`}>
+        <span className="truncate">{label}</span>
+        <ChevronDown className={`w-4 h-4 ml-1 flex-shrink-0 ${colored ? 'text-white/70' : 'text-gray-400'}`} />
+      </div>
+      {/* Real select on top - transparent, full coverage */}
+      <select
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+        style={{ fontSize: '16px' }}
+      >
+        {DESTINATIONS.map(d => (
+          <option key={d.value} value={d.value}>{d.label}</option>
+        ))}
+      </select>
+    </div>
+  );
 }
 
 // ---- Content Modal ----
@@ -164,7 +174,6 @@ interface ContentModalProps {
   onClose: () => void;
   onSave: (destination: string) => void;
 }
-
 function ContentModal({ block, onClose, onSave }: ContentModalProps) {
   const currentDest = block.config?.destination || 'general';
   const [destination, setDestination] = useState(currentDest);
@@ -186,9 +195,7 @@ function ContentModal({ block, onClose, onSave }: ContentModalProps) {
         <div className="px-6 pt-6 pb-4 flex items-start justify-between">
           <div>
             <h2 className="text-xl font-bold text-gray-900">Editor de Contenido de Instancia</h2>
-            <p className="text-sm text-gray-500 mt-1">
-              Asigna el contenido especifico para "{block.name}" en la portada.
-            </p>
+            <p className="text-sm text-gray-500 mt-1">Asigna el contenido especifico para "{block.name}" en la portada.</p>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg ml-4 flex-shrink-0">
             <X className="w-5 h-5 text-gray-500" />
@@ -200,21 +207,17 @@ function ContentModal({ block, onClose, onSave }: ContentModalProps) {
             <select
               value={destination}
               onChange={e => setDestination(e.target.value)}
-              className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               {DESTINATIONS.map(d => (
                 <option key={d.value} value={d.value}>{d.label}</option>
               ))}
             </select>
-            <p className="text-xs text-gray-400 mt-1">
-              Define de que seccion del diario se alimentara este bloque.
-            </p>
+            <p className="text-xs text-gray-400 mt-1">Define de que seccion del diario se alimentara este bloque.</p>
           </div>
           {cols.length > 0 && (
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-3">
-                Previsualizacion y Asignacion de Contenido
-              </label>
+              <label className="block text-sm font-semibold text-gray-700 mb-3">Previsualizacion y Asignacion de Contenido</label>
               <div className="border border-gray-200 rounded-xl p-4 bg-gray-50">
                 <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${Math.min(cols.length, 3)}, 1fr)` }}>
                   {cols.map((col, idx) => (
@@ -225,9 +228,7 @@ function ContentModal({ block, onClose, onSave }: ContentModalProps) {
                       <div className="flex-1 flex flex-col items-center justify-center gap-1">
                         {getColTypeIcon(col.type)}
                         <span className="text-xs font-medium text-gray-700 text-center">Contenido de {col.type}</span>
-                        <span className="text-[10px] text-blue-500 text-center">
-                          Desde Destino: "{getDestLabel(destination)}"
-                        </span>
+                        <span className="text-[10px] text-blue-500 text-center">Desde: "{getDestLabel(destination)}"</span>
                       </div>
                     </div>
                   ))}
@@ -237,9 +238,7 @@ function ContentModal({ block, onClose, onSave }: ContentModalProps) {
           )}
         </div>
         <div className="px-6 py-4 bg-gray-50 flex justify-end gap-3 border-t border-gray-100">
-          <button onClick={onClose} className="px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-xl transition-colors">
-            Cancelar
-          </button>
+          <button onClick={onClose} className="px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-xl transition-colors">Cancelar</button>
           <button
             onClick={() => { onSave(destination); onClose(); }}
             className="px-5 py-2.5 text-sm font-medium text-white bg-gray-900 hover:bg-gray-800 rounded-xl transition-colors"
@@ -263,16 +262,16 @@ export default function LayoutPage() {
   const [saving, setSaving] = useState(false);
   const [hasPendingChanges, setHasPendingChanges] = useState(false);
 
-  // Drag state for block reorder (right panel)
+  // Drag state for block reorder
   const dragBlockIdx = useRef<number | null>(null);
   const dragOverBlockIdx = useRef<number | null>(null);
-
-  // Drag state for template-to-layout (left panel to right panel)
+  // Drag state for template-to-preview
   const dragTemplateId = useRef<string | null>(null);
   const [dropTargetIdx, setDropTargetIdx] = useState<number | null>(null);
   const [isDraggingTemplate, setIsDraggingTemplate] = useState(false);
 
-  const fetchAll = async () => {
+  // Initial load only
+  const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
       const [bRes, tRes] = await Promise.all([
@@ -285,25 +284,60 @@ export default function LayoutPage() {
       setBlocks(sorted);
       setTemplates(tData.templates || []);
     } catch {
-      setBlocks([]);
-      setTemplates([]);
+      setBlocks([]); setTemplates([]);
     }
     setLoading(false);
+  }, []);
+
+  useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  // ---- Optimistic destination change (no refresh) ----
+  const handleDestinationChange = (block: Block, destination: string) => {
+    const bid = getId(block);
+    // Update local state immediately - no fetchAll
+    setBlocks(prev => prev.map(b => getId(b) === bid ? { ...b, config: { ...b.config, destination } } : b));
+    setHasPendingChanges(true);
+    // Save to API in background
+    fetch(API + '/block/' + bid, {
+      method: 'PUT',
+      headers: getHeaders(),
+      body: JSON.stringify({ config: { destination } }),
+    }).catch(() => {/* silently ignore, will retry on save */});
   };
 
-  useEffect(() => { fetchAll(); }, []);
-
-  // Add template at a specific insert position (insertAtIdx = index to insert BEFORE)
+  // ---- Add template at position (optimistic) ----
   const addTemplateAtPosition = async (tmpl: BlockTemplate, insertAtIdx?: number) => {
     const posIdx = insertAtIdx !== undefined ? insertAtIdx : blocks.length;
+    const tempId = 'temp-' + Date.now();
+
+    // Build optimistic block
+    const optimisticBlock: Block = {
+      _tempId: tempId,
+      name: tmpl.name,
+      template: tmpl,
+      order: posIdx + 1,
+      isVisible: true,
+      config: { destination: 'general' },
+      content: [],
+    };
+
+    // Insert into local state immediately
+    setBlocks(prev => {
+      const newBlocks = [...prev];
+      newBlocks.splice(posIdx, 0, optimisticBlock);
+      return newBlocks.map((b, i) => ({ ...b, order: i + 1 }));
+    });
+    setHasPendingChanges(true);
+
+    // Shift existing blocks orders and create new one in background
     const blocksToShift = blocks.slice(posIdx);
-    for (let i = 0; i < blocksToShift.length; i++) {
-      await fetch(API + '/block/' + getId(blocksToShift[i]), {
-        method: 'PUT',
-        headers: getHeaders(),
-        body: JSON.stringify({ order: posIdx + i + 2 }),
-      });
+    for (const b of blocksToShift) {
+      fetch(API + '/block/' + getId(b), {
+        method: 'PUT', headers: getHeaders(),
+        body: JSON.stringify({ order: b.order + 1 }),
+      }).catch(() => {});
     }
+
     const body = {
       name: tmpl.name,
       template: getId(tmpl),
@@ -312,53 +346,57 @@ export default function LayoutPage() {
       config: { destination: 'general' },
       content: [],
     };
-    await fetch(API + '/blocks', { method: 'POST', headers: getHeaders(), body: JSON.stringify(body) });
-    await fetchAll();
-    setHasPendingChanges(true);
+    try {
+      const res = await fetch(API + '/blocks', { method: 'POST', headers: getHeaders(), body: JSON.stringify(body) });
+      const data = await res.json();
+      const realBlock = data.block || data;
+      // Replace temp block with real one
+      setBlocks(prev => prev.map(b => b._tempId === tempId ? { ...realBlock, template: tmpl } : b));
+    } catch {
+      // Remove temp block on error
+      setBlocks(prev => prev.filter(b => b._tempId !== tempId));
+    }
   };
 
+  // ---- Delete block (optimistic) ----
   const deleteBlock = async (block: Block) => {
     if (!confirm('Eliminar este bloque de la portada?')) return;
-    await fetch(API + '/block/' + getId(block), { method: 'DELETE', headers: getHeaders() });
-    fetchAll();
+    const bid = getId(block);
+    // Remove locally immediately
+    setBlocks(prev => prev.filter(b => getId(b) !== bid));
     setHasPendingChanges(true);
+    // Delete in background
+    fetch(API + '/block/' + bid, { method: 'DELETE', headers: getHeaders() }).catch(() => {});
   };
 
-  const handleSaveContent = async (block: Block, destination: string) => {
-    await fetch(API + '/block/' + getId(block), {
-      method: 'PUT',
-      headers: getHeaders(),
+  // ---- Save content from modal (optimistic) ----
+  const handleSaveContent = (block: Block, destination: string) => {
+    const bid = getId(block);
+    setBlocks(prev => prev.map(b => getId(b) === bid ? { ...b, config: { ...b.config, destination } } : b));
+    setHasPendingChanges(true);
+    fetch(API + '/block/' + bid, {
+      method: 'PUT', headers: getHeaders(),
       body: JSON.stringify({ config: { destination } }),
-    });
-    fetchAll();
-    setHasPendingChanges(true);
+    }).catch(() => {});
   };
 
-  const handleDestinationChange = async (block: Block, destination: string) => {
-    await fetch(API + '/block/' + getId(block), {
-      method: 'PUT',
-      headers: getHeaders(),
-      body: JSON.stringify({ config: { destination } }),
-    });
-    fetchAll();
-    setHasPendingChanges(true);
-  };
-
+  // ---- Publish all changes ----
   const handleSaveAll = async () => {
     setSaving(true);
     for (let i = 0; i < blocks.length; i++) {
-      await fetch(API + '/block/' + getId(blocks[i]), {
-        method: 'PUT',
-        headers: getHeaders(),
+      const bid = getId(blocks[i]);
+      if (!bid) continue;
+      await fetch(API + '/block/' + bid, {
+        method: 'PUT', headers: getHeaders(),
         body: JSON.stringify({ order: i + 1 }),
       });
     }
     setSaving(false);
     setHasPendingChanges(false);
-    alert('Cambios guardados en la portada del diario.');
+    alert('Portada publicada correctamente.');
   };
 
-  // ---- Block reorder drag (right panel) ----
+  // ---- Block reorder drag ----
   const handleBlockDragStart = (idx: number) => {
     if (isDraggingTemplate) return;
     dragBlockIdx.current = idx;
@@ -367,27 +405,33 @@ export default function LayoutPage() {
     if (isDraggingTemplate) return;
     dragOverBlockIdx.current = idx;
   };
-  const handleBlockDrop = async () => {
+  const handleBlockDrop = () => {
     if (isDraggingTemplate) return;
     if (dragBlockIdx.current === null || dragOverBlockIdx.current === null) return;
     if (dragBlockIdx.current === dragOverBlockIdx.current) {
       dragBlockIdx.current = null; dragOverBlockIdx.current = null; return;
     }
-    const newBlocks = [...blocks];
-    const [removed] = newBlocks.splice(dragBlockIdx.current, 1);
-    newBlocks.splice(dragOverBlockIdx.current, 0, removed);
+    const from = dragBlockIdx.current, to = dragOverBlockIdx.current;
     dragBlockIdx.current = null; dragOverBlockIdx.current = null;
-    setBlocks(newBlocks);
+    // Optimistic reorder
+    setBlocks(prev => {
+      const newBlocks = [...prev];
+      const [removed] = newBlocks.splice(from, 1);
+      newBlocks.splice(to, 0, removed);
+      return newBlocks.map((b, i) => ({ ...b, order: i + 1 }));
+    });
     setHasPendingChanges(true);
-    for (let i = 0; i < newBlocks.length; i++) {
-      await fetch(API + '/block/' + getId(newBlocks[i]), {
-        method: 'PUT', headers: getHeaders(),
-        body: JSON.stringify({ order: i + 1 }),
-      });
-    }
+    // Save new orders in background
+    setBlocks(prev => {
+      for (let i = 0; i < prev.length; i++) {
+        const bid = getId(prev[i]);
+        if (bid) fetch(API + '/block/' + bid, { method: 'PUT', headers: getHeaders(), body: JSON.stringify({ order: i + 1 }) }).catch(() => {});
+      }
+      return prev;
+    });
   };
 
-  // ---- Template drag to preview (left panel to right panel) ----
+  // ---- Template drag to preview ----
   const handleTemplateDragStart = (tmpl: BlockTemplate) => {
     dragTemplateId.current = getId(tmpl);
     setIsDraggingTemplate(true);
@@ -397,45 +441,30 @@ export default function LayoutPage() {
     setIsDraggingTemplate(false);
     setDropTargetIdx(null);
   };
-
   const handleDropZoneDragOver = (e: React.DragEvent, idx: number) => {
     if (!isDraggingTemplate) return;
-    e.preventDefault();
-    e.stopPropagation();
+    e.preventDefault(); e.stopPropagation();
     setDropTargetIdx(idx);
   };
-
   const handleDropZoneDrop = async (e: React.DragEvent, insertAtIdx: number) => {
-    e.preventDefault();
-    e.stopPropagation();
+    e.preventDefault(); e.stopPropagation();
     if (!isDraggingTemplate || !dragTemplateId.current) return;
     const tmpl = templates.find(t => getId(t) === dragTemplateId.current);
     if (!tmpl) return;
-    setDropTargetIdx(null);
-    setIsDraggingTemplate(false);
-    dragTemplateId.current = null;
+    setDropTargetIdx(null); setIsDraggingTemplate(false); dragTemplateId.current = null;
     await addTemplateAtPosition(tmpl, insertAtIdx);
   };
-
-  const handlePreviewDragOver = (e: React.DragEvent) => {
-    if (!isDraggingTemplate) return;
-    e.preventDefault();
-  };
-
+  const handlePreviewDragOver = (e: React.DragEvent) => { if (isDraggingTemplate) e.preventDefault(); };
   const handlePreviewDrop = async (e: React.DragEvent) => {
     e.preventDefault();
     if (!isDraggingTemplate || !dragTemplateId.current) return;
     const tmpl = templates.find(t => getId(t) === dragTemplateId.current);
     if (!tmpl) return;
-    setDropTargetIdx(null);
-    setIsDraggingTemplate(false);
-    dragTemplateId.current = null;
+    setDropTargetIdx(null); setIsDraggingTemplate(false); dragTemplateId.current = null;
     await addTemplateAtPosition(tmpl);
   };
 
-  const filteredTemplates = templates.filter(t =>
-    t.name.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredTemplates = templates.filter(t => t.name.toLowerCase().includes(search.toLowerCase()));
 
   if (loading) {
     return (
@@ -452,9 +481,7 @@ export default function LayoutPage() {
         <div className="mb-6 flex items-start justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Editor de Portada</h1>
-            <p className="text-sm text-gray-500 mt-1">
-              Arrastra, suelta y organiza las instancias de bloques para construir la pagina principal.
-            </p>
+            <p className="text-sm text-gray-500 mt-1">Arrastra, suelta y organiza las instancias de bloques para construir la pagina principal.</p>
           </div>
           {hasPendingChanges && (
             <button
@@ -463,19 +490,19 @@ export default function LayoutPage() {
               className="flex items-center gap-2 px-5 py-2.5 bg-gray-900 text-white text-sm font-medium rounded-xl hover:bg-gray-800 transition-colors disabled:opacity-60"
             >
               <Save className="w-4 h-4" />
-              {saving ? 'Guardando...' : 'Publicar Portada'}
+              {saving ? 'Publicando...' : 'Publicar Portada'}
             </button>
           )}
         </div>
 
         {hasPendingChanges && (
           <div className="mb-4 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-700 flex items-center gap-2">
-            <span className="font-semibold">Cambios pendientes:</span> Los cambios se publicaran en el diario cuando hagas clic en "Publicar Portada". La portada en vivo no se ha modificado aun.
+            <span className="font-semibold">Cambios pendientes:</span> Los cambios se publicaran al hacer clic en "Publicar Portada". La portada en vivo no se ha modificado aun.
           </div>
         )}
 
         <div className="flex gap-6 items-start">
-          {/* ---- Left panel: Templates ---- */}
+          {/* Left panel */}
           <div className="w-56 flex-shrink-0">
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
               <div className="p-4">
@@ -503,9 +530,7 @@ export default function LayoutPage() {
                         onClick={() => addTemplateAtPosition(t)}
                         className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-gray-150 bg-white hover:bg-blue-50 hover:border-blue-200 transition-colors group cursor-grab active:cursor-grabbing select-none"
                       >
-                        <div className="w-7 h-7 flex items-center justify-center flex-shrink-0">
-                          {getLayoutIcon(t.layout)}
-                        </div>
+                        <div className="w-7 h-7 flex items-center justify-center flex-shrink-0">{getLayoutIcon(t.layout)}</div>
                         <span className="text-sm font-medium text-gray-800 flex-1 truncate">{t.name}</span>
                         <Pencil className="w-3.5 h-3.5 text-gray-400 group-hover:text-blue-500 flex-shrink-0" />
                       </div>
@@ -525,14 +550,12 @@ export default function LayoutPage() {
             </div>
           </div>
 
-          {/* ---- Right panel: Preview ---- */}
+          {/* Right panel: Preview */}
           <div className="flex-1">
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
               <div className="p-5 border-b border-gray-100">
                 <h2 className="text-base font-bold text-gray-900">Previsualizacion de la Portada</h2>
-                {isDraggingTemplate && (
-                  <p className="text-xs text-blue-500 mt-1">Suelta la plantilla en la posicion deseada</p>
-                )}
+                {isDraggingTemplate && <p className="text-xs text-blue-500 mt-1">Suelta la plantilla en la posicion deseada</p>}
               </div>
               <div className="p-5">
                 <div
@@ -547,91 +570,81 @@ export default function LayoutPage() {
                       onDrop={e => { e.stopPropagation(); handlePreviewDrop(e); }}
                     >
                       <FileText className="w-12 h-12 mb-3 text-gray-300" />
-                      <p className="font-medium text-gray-500">
-                        {isDraggingTemplate ? 'Suelta aqui para agregar' : 'No hay bloques en la portada'}
-                      </p>
-                      <p className="text-sm">
-                        {isDraggingTemplate ? '' : 'Haz clic o arrastra una plantilla para agregarla'}
-                      </p>
+                      <p className="font-medium text-gray-500">{isDraggingTemplate ? 'Suelta aqui para agregar' : 'No hay bloques en la portada'}</p>
+                      <p className="text-sm">{isDraggingTemplate ? '' : 'Haz clic o arrastra una plantilla para agregarla'}</p>
                     </div>
                   ) : (
                     <div className="space-y-1">
-                      {/* Drop zone BEFORE first block */}
+                      {/* Drop zone before first block */}
                       <div
                         className={`rounded-lg transition-all duration-150 ${dropTargetIdx === 0 && isDraggingTemplate ? 'h-10 bg-blue-100 border-2 border-dashed border-blue-400 flex items-center justify-center' : 'h-2'}`}
                         onDragOver={e => handleDropZoneDragOver(e, 0)}
                         onDrop={e => handleDropZoneDrop(e, 0)}
                       >
-                        {dropTargetIdx === 0 && isDraggingTemplate && (
-                          <span className="text-xs text-blue-500 font-medium">Insertar aqui</span>
-                        )}
+                        {dropTargetIdx === 0 && isDraggingTemplate && <span className="text-xs text-blue-500 font-medium">Insertar aqui</span>}
                       </div>
 
                       {blocks.map((block, idx) => {
-                        const bid = getId(block);
+                        const bid = getId(block) || block._tempId || '';
                         const currentDest = (block.config?.destination || 'general').toLowerCase();
+                        const colored = isColoredDest(currentDest);
                         const colorClass = getDestColorClass(currentDest);
-                        const isColored = currentDest !== 'general';
+                        const textClass = colored ? 'text-white' : 'text-gray-900';
+                        const isTemp = !!block._tempId && !block.id && !block._id;
+
                         return (
                           <div key={bid}>
                             <div
-                              draggable={!isDraggingTemplate}
+                              draggable={!isDraggingTemplate && !isTemp}
                               onDragStart={() => handleBlockDragStart(idx)}
                               onDragEnter={() => handleBlockDragEnter(idx)}
                               onDragEnd={handleBlockDrop}
                               onDragOver={e => { if (!isDraggingTemplate) e.preventDefault(); }}
-                              className={`rounded-xl border shadow-sm overflow-hidden transition-all duration-200 ${colorClass}`}
+                              className={`rounded-xl border shadow-sm overflow-hidden transition-colors duration-200 ${colorClass} ${isTemp ? 'opacity-70' : ''}`}
                             >
                               <div className="flex items-center gap-2 px-3 py-3">
                                 <div className={`cursor-grab active:cursor-grabbing p-1 -ml-1 flex-shrink-0 ${isDraggingTemplate ? 'opacity-30' : ''}`}>
-                                  <GripVertical className={`w-5 h-5 ${isColored ? 'text-white/60' : 'text-gray-400'}`} />
+                                  <GripVertical className={`w-5 h-5 ${colored ? 'text-white/60' : 'text-gray-400'}`} />
                                 </div>
-                                <div className={`w-8 h-8 flex items-center justify-center rounded-lg flex-shrink-0 ${isColored ? 'bg-white/20' : 'bg-gray-100'}`}>
-                                  {block.template ? (
-                                    isColored
-                                      ? <Columns2 className="w-4 h-4 text-white" />
-                                      : getLayoutIcon(block.template.layout)
-                                  ) : <FileText className={`w-4 h-4 ${isColored ? 'text-white' : 'text-gray-400'}`} />}
+                                <div className={`w-8 h-8 flex items-center justify-center rounded-lg flex-shrink-0 ${colored ? 'bg-white/20' : 'bg-gray-100'}`}>
+                                  {block.template
+                                    ? getLayoutIcon(block.template.layout, colored)
+                                    : <FileText className={`w-4 h-4 ${colored ? 'text-white' : 'text-gray-400'}`} />}
                                 </div>
-                                <div className="flex-1">
-                                  <select
-                                    value={currentDest}
-                                    onChange={e => handleDestinationChange(block, e.target.value)}
-                                    className={`w-full border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-white/50 font-medium ${isColored ? 'bg-white/20 border-white/30 text-white placeholder-white/70' : 'bg-white border-gray-200 text-gray-900'}`}
-                                  >
-                                    {DESTINATIONS.map(d => (
-                                      <option key={d.value} value={d.value}>{d.label}</option>
-                                    ))}
-                                  </select>
-                                </div>
+
+                                {/* Custom destination selector */}
+                                <DestSelect
+                                  value={currentDest}
+                                  colored={colored}
+                                  onChange={val => handleDestinationChange(block, val)}
+                                />
+
                                 <button
                                   onClick={() => setContentModal(block)}
-                                  className={`flex items-center gap-1.5 px-3 py-2 border rounded-xl text-sm font-medium transition-colors flex-shrink-0 ${isColored ? 'border-white/30 text-white hover:bg-white/20' : 'border-gray-200 text-gray-700 hover:bg-gray-50'}`}
+                                  className={`flex items-center gap-1.5 px-3 py-2 border rounded-xl text-sm font-medium transition-colors flex-shrink-0 ${colored ? 'border-white/30 text-white hover:bg-white/20' : 'border-gray-200 text-gray-700 hover:bg-gray-50'}`}
                                 >
                                   <Pencil className="w-3.5 h-3.5" />
                                   Cont.
                                 </button>
                                 <button
                                   onClick={() => deleteBlock(block)}
-                                  className={`p-2 rounded-lg transition-colors flex-shrink-0 ${isColored ? 'hover:bg-white/20' : 'hover:bg-red-50'}`}
+                                  className={`p-2 rounded-lg transition-colors flex-shrink-0 ${colored ? 'hover:bg-white/20' : 'hover:bg-red-50'}`}
                                 >
-                                  <Trash2 className={`w-4 h-4 ${isColored ? 'text-white/70 hover:text-white' : 'text-gray-400 hover:text-red-500'}`} />
+                                  <Trash2 className={`w-4 h-4 ${colored ? 'text-white/70' : 'text-gray-400'}`} />
                                 </button>
                               </div>
                               <div className="px-3 pb-3">
-                                {getLayoutPreview(block.template, isColored)}
+                                {getLayoutPreview(block.template, colored)}
                               </div>
                             </div>
 
-                            {/* Drop zone AFTER this block */}
+                            {/* Drop zone after this block */}
                             <div
                               className={`rounded-lg transition-all duration-150 mt-1 ${dropTargetIdx === idx + 1 && isDraggingTemplate ? 'h-10 bg-blue-100 border-2 border-dashed border-blue-400 flex items-center justify-center' : 'h-2'}`}
                               onDragOver={e => handleDropZoneDragOver(e, idx + 1)}
                               onDrop={e => handleDropZoneDrop(e, idx + 1)}
                             >
-                              {dropTargetIdx === idx + 1 && isDraggingTemplate && (
-                                <span className="text-xs text-blue-500 font-medium">Insertar aqui</span>
-                              )}
+                              {dropTargetIdx === idx + 1 && isDraggingTemplate && <span className="text-xs text-blue-500 font-medium">Insertar aqui</span>}
                             </div>
                           </div>
                         );
@@ -649,7 +662,7 @@ export default function LayoutPage() {
         <ContentModal
           block={contentModal}
           onClose={() => setContentModal(null)}
-          onSave={(dest) => handleSaveContent(contentModal, dest)}
+          onSave={dest => handleSaveContent(contentModal, dest)}
         />
       )}
     </div>
