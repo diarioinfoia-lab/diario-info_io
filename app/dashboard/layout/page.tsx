@@ -169,16 +169,37 @@ function DestSelect({ value, colored, onChange }: DestSelectProps) {
 }
 
 // ---- Content Modal ----
+interface PlaylistOption { _id: string; name: string; }
 interface ContentModalProps {
   block: Block;
   onClose: () => void;
-  onSave: (destination: string) => void;
+  onSave: (destination: string, playlistSelections: Record<number, string>) => void;
 }
 function ContentModal({ block, onClose, onSave }: ContentModalProps) {
   const currentDest = block.config?.destination || 'general';
   const [destination, setDestination] = useState(currentDest);
+  const [playlists, setPlaylists] = useState<PlaylistOption[]>([]);
+  const initSelections = (): Record<number, string> => {
+    const sel: Record<number, string> = {};
+    const cols = block.template?.columns || [];
+    const content = (block.content || []) as Array<{ type?: string; playlistId?: string; playlist?: string }>;
+    cols.forEach((col, idx) => {
+      if (col.type === 'Playlist de Videos') {
+        const existing = content[idx];
+        sel[idx] = (existing?.playlistId || existing?.playlist || '');
+      }
+    });
+    return sel;
+  };
+  const [playlistSelections, setPlaylistSelections] = useState<Record<number, string>>(initSelections);
   const cols = block.template?.columns || [];
 
+  useEffect(() => {
+    fetch(API + '/playlists?limit=100', { headers: getHeaders() })
+      .then(r => r.json())
+      .then(d => { if (d.playlists) setPlaylists(d.playlists); })
+      .catch(() => {});
+  }, []);
   const getSlotLabel = (idx: number, total: number, layout: string) => {
     if (total === 1) return 'PRINCIPAL';
     if (layout?.startsWith('Hero')) {
@@ -189,9 +210,11 @@ function ContentModal({ block, onClose, onSave }: ContentModalProps) {
     return `SECUNDARIO ${idx}`;
   };
 
+  const isPlaylist = (t: string) => t === 'Playlist de Videos';
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl mx-4 overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl mx-4 overflow-hidden max-h-[90vh] flex flex-col">
         <div className="px-6 pt-6 pb-4 flex items-start justify-between">
           <div>
             <h2 className="text-xl font-bold text-gray-900">Editor de Contenido de Instancia</h2>
@@ -201,7 +224,7 @@ function ContentModal({ block, onClose, onSave }: ContentModalProps) {
             <X className="w-5 h-5 text-gray-500" />
           </button>
         </div>
-        <div className="px-6 pb-4 space-y-5">
+        <div className="px-6 pb-4 space-y-5 overflow-y-auto flex-1">
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">Destino del Contenido</label>
             <select
@@ -214,25 +237,46 @@ function ContentModal({ block, onClose, onSave }: ContentModalProps) {
               ))}
             </select>
             <p className="text-xs text-gray-400 mt-1">Define de que seccion del diario se alimentara este bloque.</p>
-          </div>
-          {cols.length > 0 && (
+          </div>          {cols.length > 0 && (
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-3">Previsualizacion y Asignacion de Contenido</label>
-              <div className="border border-gray-200 rounded-xl p-4 bg-gray-50">
-                <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${Math.min(cols.length, 3)}, 1fr)` }}>
-                  {cols.map((col, idx) => (
-                    <div key={idx} className="bg-white rounded-xl border border-gray-200 p-3 flex flex-col items-center gap-2 min-h-24">
-                      <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider text-center">
-                        {getSlotLabel(idx, cols.length, block.template?.layout || '')}
-                      </span>
-                      <div className="flex-1 flex flex-col items-center justify-center gap-1">
+              <div className="border border-gray-200 rounded-xl p-4 bg-gray-50 space-y-3">
+                {cols.map((col, idx) => (
+                  <div key={idx} className="bg-white rounded-xl border border-gray-200 p-4">
+                    <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-2">
+                      {getSlotLabel(idx, cols.length, block.template?.layout || '')}
+                    </span>
+                    {isPlaylist(col.type) ? (
+                      <div className="flex flex-col gap-2">
+                        <div className="flex items-center gap-2">
+                          <MonitorPlay className="w-5 h-5 text-purple-500 flex-shrink-0" />
+                          <span className="text-xs font-semibold text-purple-700">Seleccionar Playlist</span>
+                        </div>
+                        <select
+                          value={playlistSelections[idx] || ''}
+                          onChange={e => setPlaylistSelections(prev => ({ ...prev, [idx]: e.target.value }))}
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-purple-400"
+                        >
+                          <option value="">-- Sin playlist asignada --</option>
+                          {playlists.map(pl => (
+                            <option key={pl._id} value={pl._id}>{pl.name}</option>
+                          ))}
+                        </select>
+                        {playlistSelections[idx] && (
+                          <p className="text-[10px] text-purple-500">
+                            Playlist seleccionada: {playlists.find(p => p._id === playlistSelections[idx])?.name || playlistSelections[idx]}
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center gap-1 py-2">
                         {getColTypeIcon(col.type)}
                         <span className="text-xs font-medium text-gray-700 text-center">Contenido de {col.type}</span>
                         <span className="text-[10px] text-blue-500 text-center">Desde: "{getDestLabel(destination)}"</span>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    )}
+                  </div>
+                ))}
               </div>
             </div>
           )}
@@ -240,7 +284,7 @@ function ContentModal({ block, onClose, onSave }: ContentModalProps) {
         <div className="px-6 py-4 bg-gray-50 flex justify-end gap-3 border-t border-gray-100">
           <button onClick={onClose} className="px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-xl transition-colors">Cancelar</button>
           <button
-            onClick={() => { onSave(destination); onClose(); }}
+            onClick={() => { onSave(destination, playlistSelections); onClose(); }}
             className="px-5 py-2.5 text-sm font-medium text-white bg-gray-900 hover:bg-gray-800 rounded-xl transition-colors"
           >
             Guardar Cambios
@@ -370,13 +414,20 @@ export default function LayoutPage() {
   };
 
   // ---- Save content from modal (optimistic) ----
-  const handleSaveContent = (block: Block, destination: string) => {
+  const handleSaveContent = (block: Block, destination: string, playlistSelections?: Record<number, string>) => {
     const bid = getId(block);
-    setBlocks(prev => prev.map(b => getId(b) === bid ? { ...b, config: { ...b.config, destination } } : b));
+    const cols = block.template?.columns || [];
+    const contentArr = cols.map((col, idx) => {
+      if (col.type === 'Playlist de Videos' && playlistSelections && playlistSelections[idx]) {
+        return { type: 'playlist', playlistId: playlistSelections[idx] };
+      }
+      return { type: 'noticia', destination };
+    });
+    setBlocks(prev => prev.map(b => getId(b) === bid ? { ...b, config: { ...b.config, destination }, content: contentArr } : b));
     setHasPendingChanges(true);
     fetch(API + '/block/' + bid, {
       method: 'PUT', headers: getHeaders(),
-      body: JSON.stringify({ config: { destination } }),
+      body: JSON.stringify({ config: { destination }, content: contentArr }),
     }).catch(() => {});
   };
 
@@ -662,7 +713,7 @@ export default function LayoutPage() {
         <ContentModal
           block={contentModal}
           onClose={() => setContentModal(null)}
-          onSave={dest => handleSaveContent(contentModal, dest)}
+          onSave={(dest, plSel) => handleSaveContent(contentModal, dest, plSel)}
         />
       )}
     </div>
