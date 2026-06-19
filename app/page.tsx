@@ -3,6 +3,7 @@ import Image from 'next/image'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import NewsTicker from '@/components/NewsTicker'
+import type { Article } from '@/types'
 
 const API = 'https://api2.diarioinfo.com'
 
@@ -20,6 +21,7 @@ interface ArticleData {
   priority?: number;
   destination?: string;
   status?: string;
+  updatedAt?: string;
 }
 
 interface BlockColumn {
@@ -319,7 +321,7 @@ export default async function Home() {
   return (
     <main className='min-h-screen bg-white dark:bg-gray-950'>
       <Header />
-      <NewsTicker articles={tickerArticles} />
+      <NewsTicker articles={tickerArticles as unknown as Article[]} />
       <div className='max-w-7xl mx-auto px-4 py-6'>
         {blocks.length === 0 && articles.length === 0 && (
           <div className='text-center py-20'>
