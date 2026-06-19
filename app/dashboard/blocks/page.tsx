@@ -33,7 +33,11 @@ function getColumnsForLayout(layout: string): number {
   if (layout === '2 Cols') return 2;
   if (layout === '3 Cols') return 3;
   if (layout === '4 Cols') return 4;
-  if (layout.startsWith('Herfunction getLayoutIcon(layout: string, columns?: {type: string}[]) {
+  if (layout.startsWith('Hero')) return 2;
+  return 1;
+}
+
+function getLayoutIcon(layout: string, columns?: {type: string}[]) {
   const colTypes = columns ? columns.map(col => col.type).join(",").toLowerCase() : "";
   if (layout === "Full-width") {
     if (colTypes.includes("playlist") || colTypes.includes("video")) return <PanelLeft className="w-4 h-4 text-gray-500" />;
@@ -121,7 +125,7 @@ function TemplateModal({ template, onClose, onSave }: TemplateModalProps) {
         setError(d.message || 'Error al guardar');
       }
     } catch {
-      setError('Error de conexiÃÂÃÂÃÂÃÂ³n');
+      setError('Error de conexiÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ³n');
     }
     setSaving(false);
   };
@@ -221,7 +225,7 @@ export default function BlocksPage() {
   useEffect(() => { fetchTemplates(); }, []);
 
   const handleDelete = async (id: string) => {
-    if (!confirm('ÃÂÃÂÃÂÃÂ¿Eliminar esta plantilla?')) return;
+    if (!confirm('ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¿Eliminar esta plantilla?')) return;
     await fetch(API + '/block-template/' + id, { method: 'DELETE', headers: getHeaders() });
     fetchTemplates();
   };
@@ -248,7 +252,7 @@ export default function BlocksPage() {
             </div>
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Plantillas</h1>
-              <p className="text-sm text-gray-500">GestiÃÂÃÂÃÂÃÂ³n de plantillas de bloques</p>
+              <p className="text-sm text-gray-500">GestiÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ³n de plantillas de bloques</p>
             </div>
           </div>
           <div className="flex gap-2">
@@ -287,7 +291,7 @@ export default function BlocksPage() {
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Icono</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Nombre</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">CÃÂÃÂÃÂÃÂ³digo</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">CÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ³digo</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Layout</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Columnas</th>
                   <th className="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Acciones</th>
