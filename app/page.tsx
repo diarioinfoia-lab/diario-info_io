@@ -34,14 +34,10 @@ interface BlockTemplate {
   columns: BlockColumn[];
 }
 
-interface BlockContentItem {
-  type: 'playlist' | 'image' | 'audio' | 'external' | 'video';
-  url?: string;
-  fileId?: string;
-  playlistId?: string;
-}
-interface PlaylistItem { url: string; description?: string; platform?: string; isVisible?: boolean; _id?: string; }
-interface PlaylistData { _id: string; name: string; description?: string; slug?: string; items: PlaylistItem[]; }
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type BlockCI = { type: string; url?: string; fileId?: string; playlistId?: string } | null;
+type PlaylistIt = { url: string; description?: string; platform?: string; isVisible?: boolean };
+type PlaylistDt = { _id: string; name: string; description?: string; items: PlaylistIt[] };
 
 interface PortadaBlock {
   id: string;
@@ -50,7 +46,7 @@ interface PortadaBlock {
   order: number;
   isVisible: boolean;
   config?: { destination?: string };
-  content: (BlockContentItem | null)[];
+  content: BlockCI[];
 }
 
 async function fetchAllPublicArticles(): Promise<ArticleData[]> {
@@ -76,12 +72,12 @@ async function fetchAllPublicArticles(): Promise<ArticleData[]> {
 
 async function getPortadaData() {
   try {
-    const [blocksRes, articles, playlistsRes] = await Promise.all([
+    const [blocksRes, articles, plRes] = await Promise.all([
       fetch(`${API}/blocks?limit=100`, { next: { revalidate: 60 } }).then(r => r.json()),
       fetchAllPublicArticles(),
       fetch(`${API}/playlists`, { next: { revalidate: 300 } }).then(r => r.json()).catch(() => ({ playlists: [] })),
     ]);
-    const playlists: PlaylistData[] = playlistsRes.playlists || [];
+    const playlists: PlaylistDt[] = plRes.playlists || [];
     const blocks: PortadaBlock[] = (blocksRes.blocks || [])
       .filter((b: PortadaBlock) => b.isVisible && b.template && b.template.layout)
       .sort((a: PortadaBlock, b: PortadaBlock) => (a.order || 0) - (b.order || 0));
@@ -183,30 +179,47 @@ function PlaylistSlot({ label }: { label?: string }) {
   );
 }
 
-function renderSlot(col: BlockColumn, article?: ArticleData, size: 'lg' | 'sm' = 'sm', contentItem?: BlockContentItem | null, playlists: PlaylistData[] = []) {
+function getYTId(url: string): string | null {
+  const m = url.match(/[?&]v=([^&]+)/) || url.match(/youtu\.be\/([^?]+)/) || url.match(/shorts\/([^?]+)/);
+  return m ? m[1] : null;
+}
+
+function renderSlot(col: BlockColumn, article?: ArticleData, size: 'lg' | 'sm' = 'sm', ci?: BlockCI, playlists: PlaylistDt[] = []) {
   const t = col.type.toLowerCase();
   if (t.includes('playlist') || t.includes('publicidad') || t.includes('multimedia')) {
-    if (!contentItem) return <PlaylistSlot label={col.type} />;
-    if (contentItem.type === 'image' && contentItem.url) {
+    if (!ci) return <PlaylistSlot label={col.type} />;
+    if (ci.type === 'image' && ci.url) {
       return (
-        <div className="relative w-full h-full rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-800 flex items-center justify-center aspect-video">
-          <img src={contentItem.url} alt="Publicidad" className="w-full h-full object-contain" />
+        <div className="relative w-full rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-800 flex items-center justify-center aspect-video">
+          <img src={ci.url} alt="Publicidad" className="w-full h-full object-contain" />
         </div>
       );
     }
-    if (contentItem.type === 'audio' && contentItem.url) {
+    if (ci.type === 'audio' && ci.url) {
       return (
         <div className="flex flex-col items-center justify-center rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 p-4 w-full">
-          <span className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">Escuchar audio</span>
+          <span className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">ESCUCHAR AUDIO</span>
           <p className="text-xs text-gray-400 mb-2">Toca para reproducir</p>
-          <audio controls src={contentItem.url} className="w-full max-w-xs" />
+          <audio controls src={ci.url} className="w-full max-w-xs" />
         </div>
       );
     }
-    if ((contentItem.type === 'playlist') && contentItem.playlistId) {
-      const playlist = playlists.find(p => p._id === contentItem.playlistId);
-      if (!playlist) return <PlaylistSlot label={col.type} />;
-      const visibleItems = playlist.items.filter(item => item.isVisible !== false).slice(0, 12);
+    if (ci.type === 'external' && ci.url) {
+      const ytId = getYTId(ci.url);
+      const thumb = ytId ? 'https://img.youtube.com/vi/' + ytId + '/hqdefault.jpg' : null;
+      return (
+        <a href={ci.url} target="_blank" rel="noopener noreferrer" className="relative block w-full aspect-video rounded-xl overflow-hidden bg-gray-900 group">
+          {thumb ? <img src={thumb} alt="Video" className="w-full h-full object-cover" /> : <div className="w-full h-full bg-gray-800 flex items-center justify-center"><span className="text-white text-sm">Ver Video</span></div>}
+          <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+            <svg className="w-12 h-12 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+          </div>
+        </a>
+      );
+    }
+    if (ci.type === 'playlist' && ci.playlistId) {
+      const pl = playlists.find(p => p._id === ci.playlistId);
+      if (!pl) return <PlaylistSlot label={col.type} />;
+      const items = pl.items.filter(it => it.isVisible !== false).slice(0, 3);
       return (
         <div className="w-full rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden bg-white dark:bg-gray-900">
           <div className="flex items-center gap-2 px-4 py-2 border-b border-gray-100 dark:border-gray-800">
@@ -214,66 +227,27 @@ function renderSlot(col: BlockColumn, article?: ArticleData, size: 'lg' | 'sm' =
               <span className="text-white text-xs font-bold">D</span>
             </div>
             <div>
-              <span className="text-xs text-gray-500 dark:text-gray-400">diario info | {playlist.name}</span>
-              {playlist.description && <p className="text-xs text-gray-400 dark:text-gray-500 truncate max-w-xs">{playlist.description}</p>}
+              <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">diario info | {pl.name}</span>
+              {pl.description && <p className="text-xs text-gray-400 truncate">{pl.description}</p>}
             </div>
           </div>
           <div className="grid grid-cols-3 gap-1 p-2">
-            {visibleItems.slice(0, 3).map((item, i) => {
-              const isYoutube = item.url.includes('youtube') || item.url.includes('youtu.be');
-              const isTiktok = item.url.includes('tiktok');
-              const isInstagram = item.url.includes('instagram');
-              const getYoutubeId = (url: string) => {
-                const m = url.match(/[?&]v=([^&]+)/) || url.match(/youtu.be/([^?]+)/) || url.match(/shorts/([^?]+)/);
-                return m ? m[1] : null;
-              };
-              const ytId = isYoutube ? getYoutubeId(item.url) : null;
+            {items.map((it, idx) => {
+              const vid = getYTId(it.url);
+              const thumb2 = vid ? 'https://img.youtube.com/vi/' + vid + '/mqdefault.jpg' : null;
               return (
-                <a key={i} href={item.url} target="_blank" rel="noopener noreferrer" className="relative aspect-video bg-gray-200 dark:bg-gray-700 rounded overflow-hidden group">
-                  {ytId ? (
-                    <img src={`https://img.youtube.com/vi/${ytId}/mqdefault.jpg`} alt={item.description || ''} className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-gray-800">
-                      <span className="text-white text-xs text-center p-1 line-clamp-2">{item.description || (isTiktok ? 'TikTok' : isInstagram ? 'Instagram' : 'Video')}</span>
-                    </div>
-                  )}
-                  <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                <a key={idx} href={it.url} target="_blank" rel="noopener noreferrer" className="relative aspect-video bg-gray-200 dark:bg-gray-700 rounded overflow-hidden group">
+                  {thumb2 ? <img src={thumb2} alt={it.description || ''} className="w-full h-full object-cover" /> : <div className="w-full h-full bg-gray-800 flex items-center justify-center"><span className="text-white text-xs p-1 text-center line-clamp-2">{it.description || 'Video'}</span></div>}
+                  <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
                   </div>
-                  {isYoutube && <span className="absolute top-1 right-1 bg-red-600 text-white text-xs px-1 rounded">YT</span>}
-                  {isTiktok && <span className="absolute top-1 right-1 bg-black text-white text-xs px-1 rounded">TK</span>}
-                  {isInstagram && <span className="absolute top-1 right-1 bg-purple-600 text-white text-xs px-1 rounded">IG</span>}
-                  {item.description && <p className="absolute bottom-0 left-0 right-0 text-white text-xs p-1 bg-black/60 line-clamp-1">{item.description}</p>}
+                  {it.description && <p className="absolute bottom-0 left-0 right-0 text-white text-xs p-1 bg-black/60 line-clamp-1">{it.description}</p>}
                 </a>
               );
             })}
           </div>
-          {visibleItems.length > 3 && (
-            <p className="text-xs text-center text-gray-400 py-1">+{visibleItems.length - 3} más videos</p>
-          )}
+          {pl.items.length > 3 && <p className="text-xs text-center text-gray-400 py-1">+{pl.items.length - 3} más videos</p>}
         </div>
-      );
-    }
-    if (contentItem.type === 'external' && contentItem.url) {
-      const isYT = contentItem.url.includes('youtube') || contentItem.url.includes('youtu.be');
-      const getYTId = (url: string) => {
-        const m = url.match(/[?&]v=([^&]+)/) || url.match(/youtu.be/([^?]+)/);
-        return m ? m[1] : null;
-      };
-      const ytId = isYT ? getYTId(contentItem.url) : null;
-      return (
-        <a href={contentItem.url} target="_blank" rel="noopener noreferrer" className="relative block w-full aspect-video rounded-xl overflow-hidden bg-gray-900 group">
-          {ytId ? (
-            <img src={`https://img.youtube.com/vi/${ytId}/hqdefault.jpg`} alt="Video" className="w-full h-full object-cover" />
-          ) : (
-            <div className="w-full h-full bg-gray-800 flex items-center justify-center">
-              <span className="text-white text-sm">Ver Video</span>
-            </div>
-          )}
-          <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
-            <svg className="w-12 h-12 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-          </div>
-        </a>
       );
     }
     return <PlaylistSlot label={col.type} />;
@@ -293,7 +267,7 @@ function PortadaBlockRenderer({
   generalPool: ArticleData[];
   specialPool: Map<string, ArticleData[]>;
   usedIds: Set<string>;
-  playlists: PlaylistData[];
+  playlists: PlaylistDt[];
 }) {
   const layout = block.template?.layout || 'Full-width';
   const cols = block.template?.columns || [{ type: 'Noticia' }];
