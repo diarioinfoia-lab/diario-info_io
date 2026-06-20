@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import Header from '@/components/Header'
+import SidebarTabs from '@/components/SidebarTabs'
 import Footer from '@/components/Footer'
 import NewsTicker from '@/components/NewsTicker'
 import type { Article } from '@/types'
@@ -398,6 +399,7 @@ export default async function Home() {
   return (
     <main className='min-h-screen bg-white dark:bg-gray-950'>
       <Header />
+      <SidebarTabs />
       <NewsTicker articles={tickerArticles as unknown as Article[]} />
       <div className='max-w-7xl mx-auto px-4 py-6'>
         {blocks.length === 0 && articles.length === 0 && (
