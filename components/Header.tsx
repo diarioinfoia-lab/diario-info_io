@@ -1,7 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import Image from 'next/image'
 import { Search, Moon, Sun, User, Menu, X } from 'lucide-react'
 import { getCategories } from '@/lib/api'
 import type { Category } from '@/types'
@@ -31,15 +30,15 @@ export default function Header() {
       <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between gap-4">
         <Link href="/" className="flex items-center gap-2 shrink-0 group">
           <div className="relative w-10 h-10 shrink-0">
-            <div className="absolute inset-0 rounded-full bg-gradient-to-br from-orange-400 via-pink-500 to-purple-600 p-[2px] shadow-md">
+            <div className="absolute inset-0 rounded-full p-[2px] shadow-md" style={{background: 'linear-gradient(135deg, #fb923c, #ec4899, #a855f7)'}}>
               <div className="w-full h-full rounded-full overflow-hidden bg-white dark:bg-gray-900 flex items-center justify-center">
-                <Image
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
                   src="https://ia.diarioinfo.com/logo-info_sm.png"
                   alt="diario info"
                   width={36}
                   height={36}
                   className="object-contain transition-transform group-hover:scale-110 duration-300"
-                  unoptimized
                 />
               </div>
             </div>
