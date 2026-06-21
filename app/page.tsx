@@ -371,13 +371,13 @@ export const revalidate = 60
 export default async function Home() {
   const { blocks, articles, playlists } = await getPortadaData();
 
-  // Sort articles: higher priority first, then most recent
+  // Sort articles: higher priority first, then most recently updated
   const sorted = [...articles].sort((a, b) => {
     const pa = a.priority || 0;
     const pb = b.priority || 0;
     if (pb !== pa) return pb - pa;
-    const da = new Date(a.createdAt || 0).getTime();
-    const db = new Date(b.createdAt || 0).getTime();
+    const da = new Date(a.updatedAt || a.createdAt || 0).getTime();
+    const db = new Date(b.updatedAt || b.createdAt || 0).getTime();
     return db - da;
   });
 
