@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { getPolls, createPoll, deletePoll, activatePoll, closePoll, getPollAudit } from '@/lib/api';
 
-interface Option { _id?: string; text: string; votes?: number; }
+interface Option { _id?: string; text: string; votes?: number; imageUrl?: string; }
 interface Poll {
   _id: string; title: string; description?: string; options: Option[];
   status: 'draft' | 'active' | 'closed'; totalVotes?: number; isSensitive?: boolean; flagged?: boolean;
@@ -14,7 +14,7 @@ export default function EncuestasPage() {
   const [showForm, setShowForm] = useState(false);
   const [title, setTitle] = useState('');
   const [desc, setDesc] = useState('');
-  const [opts, setOpts] = useState(['', '']);
+  const [opts, setOpts] = useState([{ text: '', imageUrl: '' }, { text: '', imageUrl: '' }]);
   const [sensitive, setSensitive] = useState(false);
   const [msg, setMsg] = useState('');
   const [auditId, setAuditId] = useState<string | null>(null);
@@ -29,11 +29,11 @@ export default function EncuestasPage() {
     finally { setLoading(false); }
   }
 
-  function reset() { setTitle(''); setDesc(''); setOpts(['', '']); setSensitive(false); setMsg(''); }
+  function reset() { setTitle(''); setDesc(''); setOpts([{ text: '', imageUrl: '' }, { text: '', imageUrl: '' }]); setSensitive(false); setMsg(''); }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    const clean = opts.map(o => o.trim()).filter(Boolean);
+    const clean = opts.map(o => ({ text: o.text.trim(), imageUrl: o.imageUrl.trim() })).filter(o => o.text);
     if (!title.trim() || clean.length < 2) { setMsg('Falta titulo o opciones (min 2)'); return; }
     try {
       await createPoll({ title, description: desc, options: clean, isSensitive: sensitive });
@@ -69,17 +69,24 @@ export default function EncuestasPage() {
 
       {showForm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <form onSubmit={submit} className="bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-md space-y-3">
+          <form onSubmit={submit} className="bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-md space-y-3 max-h-[90vh] overflow-y-auto">
             <h2 className="text-lg font-bold dark:text-white">Nueva encuesta</h2>
             <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Titulo" required
               className="w-full border rounded-lg px-3 py-2 dark:bg-gray-700 dark:text-white" />
             <input value={desc} onChange={e => setDesc(e.target.value)} placeholder="Descripcion (opcional)"
               className="w-full border rounded-lg px-3 py-2 dark:bg-gray-700 dark:text-white" />
             {opts.map((o, i) => (
-              <input key={i} value={o} onChange={e => { const c = [...opts]; c[i] = e.target.value; setOpts(c); }}
-                placeholder={`Opcion ${i + 1}`} className="w-full border rounded-lg px-3 py-2 dark:bg-gray-700 dark:text-white" />
+              <div key={i} className="flex gap-2 items-start border rounded-lg p-2">
+                {o.imageUrl && <img src={o.imageUrl} alt="" className="w-10 h-10 rounded object-cover flex-shrink-0" />}
+                <div className="flex-1 space-y-1">
+                  <input value={o.text} onChange={e => { const c = [...opts]; c[i] = { ...c[i], text: e.target.value }; setOpts(c); }}
+                    placeholder={`Opcion ${i + 1}`} className="w-full border rounded-lg px-3 py-2 dark:bg-gray-700 dark:text-white" />
+                  <input value={o.imageUrl} onChange={e => { const c = [...opts]; c[i] = { ...c[i], imageUrl: e.target.value }; setOpts(c); }}
+                    placeholder="URL de imagen (opcional)" className="w-full border rounded-lg px-3 py-2 text-xs dark:bg-gray-700 dark:text-white" />
+                </div>
+              </div>
             ))}
-            <button type="button" onClick={() => setOpts([...opts, ''])} className="text-sm text-rose-600">+ Opcion</button>
+            <button type="button" onClick={() => setOpts([...opts, { text: '', imageUrl: '' }])} className="text-sm text-rose-600">+ Opcion</button>
             <label className="flex items-center gap-2 text-sm dark:text-gray-300">
               <input type="checkbox" checked={sensitive} onChange={e => setSensitive(e.target.checked)} /> Tema sensible
             </label>
@@ -119,7 +126,13 @@ export default function EncuestasPage() {
                     const pct = total > 0 ? Math.round(((o.votes || 0) / total) * 100) : 0;
                     return (
                       <div key={o._id || i} className="text-xs text-gray-600 dark:text-gray-400">
-                        <div className="flex justify-between"><span>{o.text}</span><span>{o.votes || 0} ({pct}%)</span></div>
+                        <div className="flex justify-between items-center gap-2">
+                          <span className="flex items-center gap-2">
+                            {o.imageUrl && <img src={o.imageUrl} alt="" className="w-6 h-6 rounded object-cover" />}
+                            {o.text}
+                          </span>
+                          <span>{o.votes || 0} ({pct}%)</span>
+                        </div>
                         <div className="h-1.5 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
                           <div className="h-full bg-rose-500" style={{ width: pct + '%' }} />
                         </div>
