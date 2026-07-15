@@ -30,7 +30,6 @@ async function authFetch(input: RequestInfo | URL, init?: RequestInit) {
   return res;
 }
 
-
 export async function signIn(email: string, password: string) {
   const res = await authFetch(`${API}/signin`, {
     method: 'POST',
@@ -334,8 +333,23 @@ export async function updatePassword(data: Record<string, unknown>) {
   return res.json();
 }
 
+// Files (uploads)
+export async function uploadFile(file: File) {
+  const fd = new FormData();
+  fd.append('file', file);
+  const res = await authFetch(`${API}/files/upload`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${getToken()}` },
+    body: fd,
+  });
+  const data = await res.json();
+  if (data && data.file && data.file.fileUrl && !String(data.file.fileUrl).startsWith('http')) {
+    data.file.fileUrl = `${API}${data.file.fileUrl}`;
+  }
+  return data;
+}
 
-    // Polls (Encuestas)
+// Polls (Encuestas)
 export async function getPolls(params?: Record<string, string | number | undefined>) {
   const q = new URLSearchParams();
   if (params) Object.entries(params).forEach(([k, v]) => v !== undefined && q.set(k, String(v)));
