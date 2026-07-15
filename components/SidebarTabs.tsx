@@ -1,6 +1,9 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { DollarSign, Search, Trophy, Calendar, Flame, Star, CloudSun, Ticket, X, Send, Bot, ExternalLink, ArrowRightLeft } from 'lucide-react'
+import { DollarSign, Search, Trophy, Calendar, Flame, Star, CloudSun, Ticket, X, Send, Bot, ExternalLink, ArrowRightLeft, BarChart3 } from 'lucide-react'
+import PollWidget from '@/components/PollWidget'
+
+const API = 'https://api2.diarioinfo.com'
 
 interface DollarData {
   blue: number | null
@@ -13,6 +16,11 @@ interface WeatherData {
   city: string
 }
 
+interface ActivePollData {
+  slug: string
+  title: string
+}
+
 export default function SidebarTabs() {
   const [openLeft, setOpenLeft] = useState<number | null>(null)
   const [openRight, setOpenRight] = useState<number | null>(null)
@@ -20,6 +28,8 @@ export default function SidebarTabs() {
   const [weather, setWeather] = useState<WeatherData>({ temp: null, desc: '', city: 'Santiago del Estero' })
   const [converterAmt, setConverterAmt] = useState('1')
   const [converterType, setConverterType] = useState<'blue' | 'oficial'>('blue')
+  const [activePoll, setActivePoll] = useState<ActivePollData | null>(null)
+  const [pollOpen, setPollOpen] = useState(true)
 
   useEffect(() => {
     fetch('https://dolarapi.com/v1/dolares/blue')
@@ -43,6 +53,18 @@ export default function SidebarTabs() {
         }
       })
       .catch(() => {})
+    fetch(API + '/polls?status=active&pageSize=1')
+      .then(r => r.json())
+      .then(d => {
+        const p = d && d.polls && d.polls[0]
+        if (p) {
+          setActivePoll({ slug: p.slug || p._id, title: p.title })
+          setPollOpen(true)
+        } else {
+          setActivePoll(null)
+        }
+      })
+      .catch(() => setActivePoll(null))
   }, [])
 
   const toggleLeft = (i: number) => {
@@ -52,6 +74,9 @@ export default function SidebarTabs() {
   const toggleRight = (i: number) => {
     setOpenRight(prev => prev === i ? null : i)
     setOpenLeft(null)
+  }
+  const togglePoll = () => {
+    setPollOpen(prev => !prev)
   }
 
   const convertedAmt = () => {
@@ -380,6 +405,36 @@ export default function SidebarTabs() {
           </div>
         </div>
       </div>
+
+      {/* Tab 9: Encuesta activa */}
+      {activePoll && (
+        <div className="fixed transition-all duration-500 ease-out top-96 right-0 z-30">
+          <div className="relative flex flex-col items-end">
+            {pollOpen && (
+              <div className="absolute top-0 right-0 z-10">
+                <div className="rounded-l-3xl border shadow-2xl bg-white/97 dark:bg-gray-900/97 backdrop-blur-md border-rose-500/60 border-r-0 border-y border-l w-[300px]">
+                  <div className="p-4 relative">
+                    <button onClick={() => setPollOpen(false)} className="absolute top-2 left-2 h-7 w-7 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-center text-gray-400 hover:text-gray-600 z-10">
+                      <X className="h-3.5 w-3.5"/>
+                    </button>
+                    <div className="pl-8">
+                      <PollWidget pollId={activePoll.slug} className="!border-0 !shadow-none !p-0" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            <div className="absolute top-0 right-0 z-10">
+              <div className="relative">
+                <span className="absolute inset-0 opacity-30 rounded-l-full bg-rose-400 pointer-events-none"></span>
+                <button onClick={togglePoll} className="relative h-12 w-12 shadow-xl border-2 border-white transition-all hover:scale-110 rounded-r-none rounded-l-full border-r-0 bg-rose-600 text-white hover:bg-rose-700 flex items-center justify-center">
+                  <BarChart3 className="h-6 w-6"/>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* FLOATING BOTTOM BUTTONS */}
       <div className="fixed bottom-6 left-6 h-16 w-16 z-40 group">
