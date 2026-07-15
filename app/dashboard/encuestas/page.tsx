@@ -198,7 +198,7 @@ export default function EncuestasPage() {
 }
 'use client';
 import { useState, useEffect } from 'react';
-import { getPolls, createPoll, deletePoll, activatePoll, closePoll, getPollAudit } from '@/lib/api';
+import { getPolls, createPoll, deletePoll, activatePoll, closePoll, getPollAudit, uploadFile } from '@/lib/api';
 
 interface Option { _id?: string; text: string; votes?: number; imageUrl?: string; }
 interface Poll {
@@ -217,6 +217,7 @@ export default function EncuestasPage() {
   const [msg, setMsg] = useState('');
   const [auditId, setAuditId] = useState<string | null>(null);
   const [auditData, setAuditData] = useState<any>(null);
+  const [uploadingIdx, setUploadingIdx] = useState<number | null>(null);
 
   useEffect(() => { load(); }, []);
 
@@ -237,6 +238,24 @@ export default function EncuestasPage() {
       await createPoll({ title, description: desc, options: clean, isSensitive: sensitive });
       setMsg('Creada'); setShowForm(false); reset(); load();
     } catch (err: any) { setMsg('Error: ' + err.message); }
+  }
+
+  async function handleImageFile(i: number, file: File | null) {
+    if (!file) return;
+    setUploadingIdx(i);
+    setMsg('');
+    try {
+      const res = await uploadFile(file);
+      if (res && res.status && res.file && res.file.fileUrl) {
+        const c = [...opts]; c[i] = { ...c[i], imageUrl: res.file.fileUrl }; setOpts(c);
+      } else {
+        setMsg('Error al subir imagen: ' + (res?.message || 'desconocido'));
+      }
+    } catch (err: any) {
+      setMsg('Error al subir imagen: ' + err.message);
+    } finally {
+      setUploadingIdx(null);
+    }
   }
 
   async function doActivate(id: string) { try { await activatePoll(id); load(); } catch (e: any) { setMsg(e.message); } }
@@ -275,12 +294,27 @@ export default function EncuestasPage() {
               className="w-full border rounded-lg px-3 py-2 dark:bg-gray-700 dark:text-white" />
             {opts.map((o, i) => (
               <div key={i} className="flex gap-2 items-start border rounded-lg p-2">
-                {o.imageUrl && <img src={o.imageUrl} alt="" className="w-10 h-10 rounded object-cover flex-shrink-0" />}
+                <div className="flex-shrink-0 w-14">
+                  {o.imageUrl ? (
+                    <img src={o.imageUrl} alt="" className="w-14 h-14 rounded object-cover" />
+                  ) : (
+                    <div className="w-14 h-14 rounded bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-[10px] text-gray-400 text-center">Sin imagen</div>
+                  )}
+                </div>
                 <div className="flex-1 space-y-1">
                   <input value={o.text} onChange={e => { const c = [...opts]; c[i] = { ...c[i], text: e.target.value }; setOpts(c); }}
                     placeholder={`Opcion ${i + 1}`} className="w-full border rounded-lg px-3 py-2 dark:bg-gray-700 dark:text-white" />
-                  <input value={o.imageUrl} onChange={e => { const c = [...opts]; c[i] = { ...c[i], imageUrl: e.target.value }; setOpts(c); }}
-                    placeholder="URL de imagen (opcional)" className="w-full border rounded-lg px-3 py-2 text-xs dark:bg-gray-700 dark:text-white" />
+                  <label className="flex items-center gap-2 text-xs">
+                    <span className="border rounded-lg px-2 py-1 cursor-pointer dark:text-gray-200 dark:border-gray-600">
+                      {uploadingIdx === i ? 'Subiendo...' : 'Subir imagen'}
+                    </span>
+                    <input type="file" accept="image/png,image/jpeg,image/jpg" className="hidden"
+                      onChange={e => handleImageFile(i, e.target.files ? e.target.files[0] : null)} />
+                    {o.imageUrl && (
+                      <button type="button" onClick={() => { const c = [...opts]; c[i] = { ...c[i], imageUrl: '' }; setOpts(c); }}
+                        className="text-gray-400 underline">quitar</button>
+                    )}
+                  </label>
                 </div>
               </div>
             ))}
