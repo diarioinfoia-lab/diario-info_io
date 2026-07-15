@@ -56,12 +56,16 @@ useEffect(function () {
     setVoted(true)
     setSelected(votedFlag)
   }
-  fetch(API + '/poll/' + pollId)
-  .then(function (r) { return r.json() })
-  .then(function (data) {
-    if (data && data.success) setPoll(data.poll)
-    else setError((data && data.message) || 'No se pudo cargar la encuesta')
-  })
+    fetch(API + '/poll/' + pollId + '?deviceToken=' + encodeURIComponent(getDeviceToken()))
+          .then(function (r) { return r.json() })
+          .then(function (data) {
+                  if (data && data.success) {
+                            setPoll(data.poll)
+                                      if (data.alreadyVoted) setVoted(true)
+                  }
+                              else setError((data && data.message) || 'No se pudo cargar la encuesta')
+          })
+})
   .catch(function () { setError('No se pudo cargar la encuesta') })
   .finally(function () { setLoading(false) })
 }, [pollId])
