@@ -65,7 +65,6 @@ useEffect(function () {
                   }
                               else setError((data && data.message) || 'No se pudo cargar la encuesta')
           })
-})
   .catch(function () { setError('No se pudo cargar la encuesta') })
   .finally(function () { setLoading(false) })
 }, [pollId])
