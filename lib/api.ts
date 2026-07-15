@@ -333,3 +333,64 @@ export async function updatePassword(data: Record<string, unknown>) {
   });
   return res.json();
 }
+
+
+    // Polls (Encuestas)
+export async function getPolls(params?: Record<string, string | number | undefined>) {
+  const q = new URLSearchParams();
+  if (params) Object.entries(params).forEach(([k, v]) => v !== undefined && q.set(k, String(v)));
+  const res = await authFetch(`${API}/polls?${q}`, { headers: authHeaders() });
+  return res.json();
+}
+
+export async function getPoll(id: string) {
+  const res = await authFetch(`${API}/poll/${id}`, { headers: authHeaders() });
+  return res.json();
+}
+
+export async function createPoll(data: Record<string, unknown>) {
+  const res = await authFetch(`${API}/polls`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify(data),
+  });
+  return res.json();
+}
+
+export async function updatePoll(id: string, data: Record<string, unknown>) {
+  const res = await authFetch(`${API}/poll/${id}`, {
+    method: 'PUT',
+    headers: authHeaders(),
+    body: JSON.stringify(data),
+  });
+  return res.json();
+}
+
+export async function deletePoll(id: string) {
+  const res = await authFetch(`${API}/poll/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  });
+  return res.json();
+}
+
+export async function activatePoll(id: string) {
+  const res = await authFetch(`${API}/poll/${id}/activate`, {
+    method: 'POST',
+    headers: authHeaders(),
+  });
+  return res.json();
+}
+
+export async function closePoll(id: string) {
+  const res = await authFetch(`${API}/poll/${id}/close`, {
+    method: 'POST',
+    headers: authHeaders(),
+  });
+  return res.json();
+}
+
+export async function getPollAudit(id: string) {
+  const res = await authFetch(`${API}/poll/${id}/audit`, { headers: authHeaders() });
+  return res.json();
+}
