@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import {
   Home, Newspaper, Tag, ListMusic, Layout, Users, Bell,
   Settings, User, LogOut, ChevronLeft, ChevronRight,
-  Globe, Moon, Sun, FileText, Clock
+  Globe, Moon, Sun, FileText, Clock, BarChart3
 } from 'lucide-react'
 
 const navItems = [
@@ -16,6 +16,7 @@ const navItems = [
   { href: '/dashboard/blocks', label: 'Plantillas', icon: FileText },
   { href: '/dashboard/layout', label: 'Portada', icon: Layout },
   { href: '/dashboard/users', label: 'Usuarios', icon: Users },
+  { href: '/dashboard/encuestas', label: 'Encuestas', icon: BarChart3 },
   { href: '/dashboard/logs', label: 'Logs del Sistema', icon: Clock },
   { href: '/dashboard/notifications', label: 'Notificaciones', icon: Bell },
   { href: '/dashboard/profile', label: 'Mi Perfil', icon: User },
