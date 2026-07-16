@@ -264,7 +264,7 @@ export default function SidebarTabs() {
       {/* RIGHT SIDEBAR TABS */}
 
       {/* Tab 5: Trending */}
-      <div className="fixed transition-all duration-500 ease-out top-24 right-0 z-30">
+      <div className="fixed transition-all duration-500 ease-out top-40 right-0 z-30">
         <div className="relative flex flex-col items-end">
           {openRight === 0 && (
             <div className="absolute top-0 right-0 z-10">
@@ -299,7 +299,7 @@ export default function SidebarTabs() {
       </div>
 
       {/* Tab 6: Saved */}
-      <div className="fixed transition-all duration-500 ease-out top-40 right-0 z-30">
+      <div className="fixed transition-all duration-500 ease-out top-56 right-0 z-30">
         <div className="relative flex flex-col items-end">
           {openRight === 1 && (
             <div className="absolute top-0 right-0 z-10">
@@ -334,7 +334,7 @@ export default function SidebarTabs() {
       </div>
 
       {/* Tab 7: Weather */}
-      <div className="fixed transition-all duration-500 ease-out top-56 right-0 z-30">
+      <div className="fixed transition-all duration-500 ease-out top-72 right-0 z-30">
         <div className="relative flex flex-col items-end">
           {openRight === 2 && (
             <div className="absolute top-0 right-0 z-10">
@@ -372,7 +372,7 @@ export default function SidebarTabs() {
       </div>
 
       {/* Tab 8: Tickets / Events */}
-      <div className="fixed transition-all duration-500 ease-out top-72 right-0 z-30">
+      <div className="fixed transition-all duration-500 ease-out top-96 right-0 z-30">
         <div className="relative flex flex-col items-end">
           {openRight === 3 && (
             <div className="absolute top-0 right-0 z-10">
@@ -408,18 +408,16 @@ export default function SidebarTabs() {
 
       {/* Tab 9: Encuesta activa */}
       {activePoll && (
-        <div className="fixed transition-all duration-500 ease-out top-96 right-0 z-30">
+        <div className="fixed transition-all duration-500 ease-out top-24 right-0 z-30">
           <div className="relative flex flex-col items-end">
             {pollOpen && (
               <div className="absolute top-0 right-0 z-10">
                 <div className="rounded-l-3xl border shadow-2xl bg-white/97 dark:bg-gray-900/97 backdrop-blur-md border-rose-500/60 border-r-0 border-y border-l w-[300px]">
-                  <div className="p-4 relative">
+                  <div className="pt-6 relative">
                     <button onClick={() => setPollOpen(false)} className="absolute top-2 left-2 h-7 w-7 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-center text-gray-400 hover:text-gray-600 z-10">
                       <X className="h-3.5 w-3.5"/>
                     </button>
-                    <div className="pl-8">
-                      <PollWidget pollId={activePoll.slug} className="!border-0 !shadow-none !p-0" />
-                    </div>
+                    <PollWidget pollId={activePoll.slug} className="!border-0 !shadow-none" />
                   </div>
                 </div>
               </div>
