@@ -107,7 +107,7 @@ function RichTextEditor({
     });
   };
 
-  const getYouTubeId = (u) => { const m = u.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/|live\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/); return m ? m[1] : null; }; const insertVideo = () => { const url = prompt('URL del video (YouTube):'); if (url) { const id = getYouTubeId(url.trim()); if (id) { const embedUrl = `https://www.youtube.com/embed/${id}`; const iframe = `<div><iframe src="${embedUrl}" frameborder="0" allowfullscreen style="width:100%;max-width:560px;height:315px;"></iframe></div>`; document.execCommand('insertHTML', false, iframe); editorRef.current?.focus(); onChange(editorRef.current?.innerHTML || ''); } else { alert('No pude reconocer un video de YouTube en ese link. Proba con un link de youtube.com/watch, youtu.be, shorts o embed.'); } } };
+  const getYouTubeId = (u: string) => { const m = u.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/|live\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/); return m ? m[1] : null; }; const insertVideo = () => { const url = prompt('URL del video (YouTube):'); if (url) { const id = getYouTubeId(url.trim()); if (id) { const embedUrl = `https://www.youtube.com/embed/${id}`; const iframe = `<div><iframe src="${embedUrl}" frameborder="0" allowfullscreen style="width:100%;max-width:560px;height:315px;"></iframe></div>`; document.execCommand('insertHTML', false, iframe); editorRef.current?.focus(); onChange(editorRef.current?.innerHTML || ''); } else { alert('No pude reconocer un video de YouTube en ese link. Proba con un link de youtube.com/watch, youtu.be, shorts o embed.'); } } };
 
   return (
     <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
